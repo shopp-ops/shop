@@ -18,8 +18,14 @@ describe('AuthController', () => {
 
   it('login delegates to AuthService and returns the result', () => {
     authService.login.mockReturnValue({ accessToken: 'token' });
-    const result = controller.login({ email: 'admin@shop.com', password: 'secret' });
-    expect(authService.login).toHaveBeenCalledWith({ email: 'admin@shop.com', password: 'secret' });
+    const result = controller.login({
+      email: 'admin@shop.com',
+      password: 'secret',
+    });
+    expect(authService.login).toHaveBeenCalledWith({
+      email: 'admin@shop.com',
+      password: 'secret',
+    });
     expect(result).toEqual({ accessToken: 'token' });
   });
 });

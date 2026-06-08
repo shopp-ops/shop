@@ -37,18 +37,26 @@ describe('AuthService', () => {
   });
 
   it('returns accessToken for valid credentials', () => {
-    const result = service.login({ email: 'admin@shop.com', password: 'secret' });
+    const result = service.login({
+      email: 'admin@shop.com',
+      password: 'secret',
+    });
     expect(result).toEqual({ accessToken: 'signed-token' });
-    expect(jwtService.sign).toHaveBeenCalledWith({ sub: 'admin', role: 'admin' });
+    expect(jwtService.sign).toHaveBeenCalledWith({
+      sub: 'admin',
+      role: 'admin',
+    });
   });
 
   it('throws UnauthorizedException for wrong password', () => {
-    expect(() => service.login({ email: 'admin@shop.com', password: 'wrong' }))
-      .toThrow(UnauthorizedException);
+    expect(() =>
+      service.login({ email: 'admin@shop.com', password: 'wrong' }),
+    ).toThrow(UnauthorizedException);
   });
 
   it('throws UnauthorizedException for wrong email', () => {
-    expect(() => service.login({ email: 'other@shop.com', password: 'secret' }))
-      .toThrow(UnauthorizedException);
+    expect(() =>
+      service.login({ email: 'other@shop.com', password: 'secret' }),
+    ).toThrow(UnauthorizedException);
   });
 });
