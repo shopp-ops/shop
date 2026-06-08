@@ -20,14 +20,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("token");
-    if (stored) {
-      authApi.me(stored)
-        .then((u) => { setToken(stored); setUser(u); })
-        .catch(() => localStorage.removeItem("token"))
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    const settle = stored
+      ? authApi
+          .me(stored)
+          .then((u) => {
+            setToken(stored);
+            setUser(u);
+          })
+          .catch(() => localStorage.removeItem("token"))
+      : Promise.resolve();
+
+    void settle.finally(() => setLoading(false));
   }, []);
 
   async function login(newToken: string) {
