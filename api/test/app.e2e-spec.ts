@@ -7,6 +7,12 @@ import { AppModule } from './../src/app.module';
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
+  beforeAll(() => {
+    process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-jwt-secret';
+    process.env.ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@shop.com';
+    process.env.ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'admin-password';
+  });
+
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
