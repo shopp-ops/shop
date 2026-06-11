@@ -48,13 +48,30 @@ describe('ProductsController', () => {
   });
 
   describe('findAll', () => {
-    it('returns all products from the service', async () => {
-      productsService.findAll.mockResolvedValue([]);
+    it('returns paginated products from the service', async () => {
+      const response = {
+        data: [],
+        meta: {
+          totalItems: 0,
+          itemCount: 0,
+          itemsPerPage: 20,
+          totalPages: 0,
+          currentPage: 1,
+        },
+      };
 
-      const result = await controller.findAll();
+      productsService.findAll.mockResolvedValue(response);
 
-      expect(productsService.findAll).toHaveBeenCalled();
-      expect(result).toEqual([]);
+      const query = {
+        search: 'Lap',
+        page: 1,
+        limit: 20,
+      };
+
+      const result = await controller.findAll(query);
+
+      expect(productsService.findAll).toHaveBeenCalledWith(query);
+      expect(result).toEqual(response);
     });
   });
 

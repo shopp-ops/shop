@@ -6,6 +6,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
 import { ProductsService } from './products.service';
+import { ILike } from 'typeorm';
 
 const makeProduct = (overrides: Partial<Product> = {}): Product =>
   Object.assign(new Product(), {
@@ -21,7 +22,7 @@ describe('ProductsService', () => {
   let repo: jest.Mocked<
     Pick<
       Repository<Product>,
-      'create' | 'save' | 'find' | 'findOneBy' | 'remove'
+      'create' | 'save' | 'find' | 'findOneBy' | 'remove' | 'findAndCount'
     >
   >;
 
@@ -32,6 +33,7 @@ describe('ProductsService', () => {
       find: jest.fn(),
       findOneBy: jest.fn(),
       remove: jest.fn(),
+      findAndCount: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -86,17 +88,77 @@ describe('ProductsService', () => {
   });
 
   describe('findAll', () => {
-    it('returns all products', async () => {
+    it('returns paginated products', async () => {
       const products = [
         makeProduct(),
         makeProduct({ id: 'uuid-2', name: 'Mouse' }),
       ];
-      repo.find.mockResolvedValue(products);
 
-      const result = await service.findAll();
+      repo.findAndCount.mockResolvedValue([products, 2]);
 
-      expect(result).toEqual(products);
-      expect(repo.find).toHaveBeenCalled();
+      const result = await service.findAll({});
+
+      expect(repo.findAndCount).toHaveBeenCalledWith({
+        where: undefined,
+        take: 20,
+        skip: 0,
+      });
+
+      expect(result).toEqual({
+        data: products,
+        meta: {
+          totalItems: 2,
+          itemCount: 2,
+          itemsPerPage: 20,
+          totalPages: 1,
+          currentPage: 1,
+        },
+      });
+    });
+
+    it('filters products by search term', async () => {
+      const products = [makeProduct({ name: 'Laptop' })];
+
+      repo.findAndCount.mockResolvedValue([products, 1]);
+
+      await service.findAll({
+        search: 'Lap',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(repo.findAndCount).toHaveBeenCalledWith({
+        where: [{ name: ILike('%Lap%') }],
+        take: 20,
+        skip: 0,
+      });
+    });
+
+    it('calculates pagination correctly', async () => {
+      repo.findAndCount.mockResolvedValue([[], 35]);
+
+      const result = await service.findAll({
+        search: '',
+        page: 3,
+        limit: 10,
+      });
+
+      expect(repo.findAndCount).toHaveBeenCalledWith({
+        where: undefined,
+        take: 10,
+        skip: 20,
+      });
+
+      expect(result).toEqual({
+        data: [],
+        meta: {
+          totalItems: 35,
+          itemCount: 0,
+          itemsPerPage: 10,
+          totalPages: 4,
+          currentPage: 3,
+        },
+      });
     });
   });
 

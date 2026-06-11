@@ -4,7 +4,7 @@ import { Type } from 'class-transformer';
 export class PaginationQueryDto {
   @IsOptional()
   @IsString()
-  search: string;
+  search?: string;
 
   @IsOptional()
   @Type(() => Number)
