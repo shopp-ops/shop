@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,6 +15,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { useAuth } from "@/lib/auth-context";
@@ -23,6 +30,7 @@ import {
   type Product,
   type ProductInput,
 } from "@/lib/api/products";
+import type { PaginationMeta, PaginationQueryDto } from "@/lib/api/pagination";
 import {
   Table,
   TableBody,
@@ -31,6 +39,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+const DEFAULT_PAGE_SIZE = 10;
+
+const DEFAULT_PAGINATION_META: PaginationMeta = {
+  totalItems: 0,
+  itemCount: 0,
+  itemsPerPage: DEFAULT_PAGE_SIZE,
+  totalPages: 1,
+  currentPage: 1,
+};
 
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -53,7 +72,7 @@ function formatPrice(price: Product["price"]) {
 export default function AdminPage() {
   const { token } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -62,6 +81,15 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [query, setQuery] = useState<PaginationQueryDto>({
+    search: "",
+    page: 1,
+    limit: DEFAULT_PAGE_SIZE,
+  });
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>(
+    DEFAULT_PAGINATION_META,
+  );
 
   const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(schema),
@@ -71,6 +99,27 @@ export default function AdminPage() {
       price: 0,
     },
   });
+
+  const fetchProducts = useCallback(
+    async (currentQuery: PaginationQueryDto) => {
+      if (!token) return null;
+
+      return productsApi.list(token, currentQuery);
+    },
+    [token],
+  );
+
+  const paginationSummary = useMemo(() => {
+    if (paginationMeta.totalItems === 0) {
+      return "Showing 0 of 0 products";
+    }
+
+    const start =
+      (paginationMeta.currentPage - 1) * paginationMeta.itemsPerPage + 1;
+    const end = start + paginationMeta.itemCount - 1;
+
+    return `Showing ${start}-${end} of ${paginationMeta.totalItems} products`;
+  }, [paginationMeta]);
 
   function getFormDefaults(product: Product | null): FormInput {
     return {
@@ -115,6 +164,40 @@ export default function AdminPage() {
     }
   }
 
+  function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setQuery((current) => ({
+      ...current,
+      search: searchInput.trim(),
+      page: 1,
+    }));
+  }
+
+  function handleSearchClear() {
+    setSearchInput("");
+    setQuery((current) => ({
+      ...current,
+      search: "",
+      page: 1,
+    }));
+  }
+
+  function handlePageChange(nextPage: number) {
+    setQuery((current) => ({
+      ...current,
+      page: nextPage,
+    }));
+  }
+
+  function handlePageSizeChange(value: string) {
+    setQuery((current) => ({
+      ...current,
+      page: 1,
+      limit: Number(value),
+    }));
+  }
+
   useEffect(() => {
     if (!token) return;
 
@@ -124,12 +207,13 @@ export default function AdminPage() {
       try {
         setLoading(true);
         setError(null);
-        if (!token) {
-          return;
-        } else {
-          const data = await productsApi.list(token);
-          if (!ignore) setProducts(data);
-        }
+
+        const response = await fetchProducts(query);
+
+        if (!response || ignore) return;
+
+        setProducts(response.data);
+        setPaginationMeta(response.meta);
       } catch (err) {
         if (!ignore) {
           setError(
@@ -146,7 +230,7 @@ export default function AdminPage() {
     return () => {
       ignore = true;
     };
-  }, [token]);
+  }, [token, query, fetchProducts]);
 
   async function onSubmit(values: FormValues) {
     if (!token) return;
@@ -162,18 +246,18 @@ export default function AdminPage() {
       setRequestError(null);
 
       if (editingProduct) {
-        console.log(editingProduct);
-        console.log(payload);
-        console.log(token);
         await productsApi.update(token, editingProduct.id, payload);
       } else {
         await productsApi.create(token, payload);
       }
 
-      setDialogOpen(false);
-      setEditingProduct(null);
-      const data = await productsApi.list(token);
-      setProducts(data);
+      handleDialogOpenChange(false);
+      const response = await fetchProducts(query);
+
+      if (response) {
+        setProducts(response.data);
+        setPaginationMeta(response.meta);
+      }
     } catch (err) {
       setRequestError(
         err instanceof Error ? err.message : "Failed to save product",
@@ -190,9 +274,29 @@ export default function AdminPage() {
       setDeleting(true);
       setRequestError(null);
       await productsApi.delete(token, productToDelete.id);
-      const data = await productsApi.list(token);
-      setProducts(data);
+
+      const currentPage = query.page ?? 1;
+      const nextPage =
+        paginationMeta.itemCount === 1 && currentPage > 1
+          ? currentPage - 1
+          : currentPage;
+
       handleDeleteDialogOpenChange(false);
+
+      if (nextPage !== currentPage) {
+        setQuery((current) => ({
+          ...current,
+          page: nextPage,
+        }));
+        return;
+      }
+
+      const response = await fetchProducts(query);
+
+      if (response) {
+        setProducts(response.data);
+        setPaginationMeta(response.meta);
+      }
     } catch (err) {
       setRequestError(
         err instanceof Error ? err.message : "Failed to delete product",
@@ -209,9 +313,6 @@ export default function AdminPage() {
           <h1 className="font-heading text-3xl font-semibold tracking-tight">
             Products
           </h1>
-          <p className="text-muted-foreground">
-            Admin overview of product name, stock quantity, and price.
-          </p>
         </div>
         <Button
           type="button"
@@ -221,6 +322,29 @@ export default function AdminPage() {
           Add new product
         </Button>
       </div>
+
+      <form
+        className="flex flex-col gap-3 sm:flex-row sm:items-center"
+        onSubmit={handleSearchSubmit}
+      >
+        <Input
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Search products by name"
+          className="sm:max-w-sm"
+        />
+        <div className="flex gap-2">
+          <Button type="submit">Search</Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSearchClear}
+            disabled={!searchInput && !query.search}
+          >
+            Clear
+          </Button>
+        </div>
+      </form>
 
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent>
@@ -305,7 +429,7 @@ export default function AdminPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setDialogOpen(false)}
+                onClick={() => handleDialogOpenChange(false)}
               >
                 Cancel
               </Button>
@@ -401,7 +525,9 @@ export default function AdminPage() {
                   colSpan={5}
                   className="py-10 text-center text-muted-foreground"
                 >
-                  No products found.
+                  {query.search
+                    ? `No products found for "${query.search}".`
+                    : "No products found."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -437,6 +563,58 @@ export default function AdminPage() {
             )}
           </TableBody>
         </Table>
+
+        <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">{paginationSummary}</p>
+          <div className="flex flex-col gap-3 self-end sm:flex-row sm:items-center sm:self-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Items per page
+              </span>
+              <Select
+                value={String(query.limit ?? DEFAULT_PAGE_SIZE)}
+                onValueChange={handlePageSizeChange}
+              >
+                <SelectTrigger className="w-22">
+                  <SelectValue placeholder="10" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={String(option)}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange((query.page ?? 1) - 1)}
+                disabled={loading || (query.page ?? 1) <= 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {paginationMeta.currentPage} of {paginationMeta.totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange((query.page ?? 1) + 1)}
+                disabled={
+                  loading ||
+                  (query.page ?? 1) >= Math.max(paginationMeta.totalPages, 1)
+                }
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

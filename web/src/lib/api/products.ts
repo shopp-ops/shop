@@ -1,4 +1,5 @@
 import { request } from "./client";
+import type { PaginatedResponse, PaginationQueryDto } from "./pagination";
 
 export type Product = {
   id: string;
@@ -13,8 +14,29 @@ export type ProductInput = {
   price: number;
 };
 
+function buildProductsPath(query?: PaginationQueryDto) {
+  const params = new URLSearchParams();
+
+  if (query?.search.trim()) {
+    params.set("search", query.search.trim());
+  }
+
+  if (query?.page) {
+    params.set("page", String(query.page));
+  }
+
+  if (query?.limit) {
+    params.set("limit", String(query.limit));
+  }
+
+  const search = params.toString();
+
+  return search ? `/api/products?${search}` : "/api/products";
+}
+
 export const productsApi = {
-  list: (token: string) => request<Product[]>("/api/products", {}, token),
+  list: (token: string, query?: PaginationQueryDto) =>
+    request<PaginatedResponse<Product>>(buildProductsPath(query), {}, token),
   create: (token: string, input: ProductInput) =>
     request<Product>(
       "/api/products",
