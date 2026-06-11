@@ -5,7 +5,8 @@ export async function request<T>(
   options?: RequestInit,
   token?: string,
 ): Promise<T> {
-  const headers: HeadersInit = { "Content-Type": "application/json" };
+  const headers: HeadersInit = {};
+  if (options?.body) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
