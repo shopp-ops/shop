@@ -1,20 +1,28 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
+import { Test } from '@nestjs/testing';
+import {
+  PostgreSqlContainer,
+  StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
+  let container: StartedPostgreSqlContainer;
 
   beforeAll(async () => {
+    container = await new PostgreSqlContainer('postgres:16').start();
+    process.env.DATABASE_URL = container.getConnectionUri();
     process.env.JWT_SECRET = 'test-jwt-secret';
     process.env.ADMIN_EMAIL = 'admin@shop.com';
     process.env.ADMIN_PASSWORD = 'admin-password';
+    process.env.NODE_ENV = 'test';
 
     const moduleFixture = await Test.createTestingModule({
       imports: [AppModule],
@@ -28,9 +36,12 @@ describe('Auth (e2e)', () => {
     await (
       app.getHttpAdapter().getInstance() as { ready(): Promise<void> }
     ).ready();
-  }, 30_000);
+  }, 60_000);
 
-  afterAll(() => app.close());
+  afterAll(async () => {
+    await app.close();
+    await container.stop();
+  }, 60_000);
 
   describe('POST /auth/login', () => {
     it('returns 200 with accessToken for valid credentials', async () => {
@@ -38,6 +49,7 @@ describe('Auth (e2e)', () => {
         .post('/auth/login')
         .send({ email: 'admin@shop.com', password: 'admin-password' })
         .expect(200);
+
       expect(res.body).toMatchObject({ accessToken: expect.any(String) });
     });
 
