@@ -1,0 +1,77 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut, Package, ShoppingCart } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
+
+export function Navbar() {
+  const { user, logout, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const isAdmin = Boolean(user);
+
+  function handleLogout() {
+    logout();
+    router.push("/login");
+  }
+
+  if (loading || pathname === "/login") {
+    return null;
+  }
+
+  const SHOP_NAME = process.env.NEXT_PUBLIC_SHOP_NAME ?? "SHOP";
+
+  return (
+    <header className="border-b bg-background">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
+        <Link
+          href={isAdmin ? "/admin" : "/products"}
+          className="text-sm font-semibold tracking-tight"
+        >
+          {SHOP_NAME}
+        </Link>
+
+        <div className="flex items-center gap-2">
+          {isAdmin ? (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/admin">
+                  <Package />
+                  Product management
+                </Link>
+              </Button>
+
+              {user ? (
+                <span className="hidden text-sm text-muted-foreground md:inline">
+                  {user.role}
+                </span>
+              ) : null}
+
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                <LogOut />
+                Logout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/products">
+                  <Package />
+                  Products
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" disabled>
+                <ShoppingCart />
+                Cart
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
