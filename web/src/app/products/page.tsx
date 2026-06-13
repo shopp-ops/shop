@@ -215,9 +215,6 @@ export default function ProductsPage() {
         <h1 className="font-heading text-3xl font-semibold tracking-tight">
           Products
         </h1>
-        <p className="text-muted-foreground">
-          Browse available products and add them to your cart.
-        </p>
       </div>
 
       <form

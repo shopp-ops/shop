@@ -4,15 +4,19 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Package, ShoppingCart } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
+import { useCartStore } from "@/lib/cart-store";
 
 export function Navbar() {
   const { user, logout, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const cartItems = useCartStore((state) => state.items);
 
   const isAdmin = Boolean(user);
+  const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   function handleLogout() {
     logout();
@@ -64,9 +68,12 @@ export function Navbar() {
                   Products
                 </Link>
               </Button>
-              <Button variant="ghost" size="sm" disabled>
-                <ShoppingCart />
-                Cart
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/cart">
+                  <ShoppingCart />
+                  Cart
+                  <Badge className="ml-1 min-w-5 px-1.5">{cartItemCount}</Badge>
+                </Link>
               </Button>
             </>
           )}
