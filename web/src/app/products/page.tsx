@@ -13,9 +13,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { productsApi, type Product } from "@/lib/api/products";
 import type { PaginationMeta, PaginationQueryDto } from "@/lib/api/pagination";
+import { useCartStore } from "@/lib/cart-store";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -49,6 +59,13 @@ export default function ProductsPage() {
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>(
     DEFAULT_PAGINATION_META,
   );
+  const [cartDialogOpen, setCartDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedQuantity, setSelectedQuantity] = useState("1");
+  const [cartError, setCartError] = useState<string | null>(null);
+
+  const cartItems = useCartStore((state) => state.items);
+  const addItem = useCartStore((state) => state.addItem);
 
   const fetchProducts = useCallback(
     async (currentQuery: PaginationQueryDto) => {
@@ -56,6 +73,24 @@ export default function ProductsPage() {
     },
     [],
   );
+
+  const cartQuantityByProduct = useMemo(
+    () =>
+      new Map(
+        cartItems.map((item) => [item.productId, item.quantity] as const),
+      ),
+    [cartItems],
+  );
+
+  const selectedProductAvailableQuantity = useMemo(() => {
+    if (!selectedProduct) return 0;
+
+    return Math.max(
+      selectedProduct.quantity -
+        (cartQuantityByProduct.get(selectedProduct.id) ?? 0),
+      0,
+    );
+  }, [selectedProduct, cartQuantityByProduct]);
 
   const paginationSummary = useMemo(() => {
     if (paginationMeta.totalItems === 0) {
@@ -68,6 +103,13 @@ export default function ProductsPage() {
 
     return `Showing ${start}-${end} of ${paginationMeta.totalItems} products`;
   }, [paginationMeta]);
+
+  function getAvailableQuantity(product: Product) {
+    return Math.max(
+      product.quantity - (cartQuantityByProduct.get(product.id) ?? 0),
+      0,
+    );
+  }
 
   function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,6 +135,44 @@ export default function ProductsPage() {
       ...current,
       page: nextPage,
     }));
+  }
+
+  function openCartDialog(product: Product) {
+    setSelectedProduct(product);
+    setSelectedQuantity("1");
+    setCartError(null);
+    setCartDialogOpen(true);
+  }
+
+  function handleCartDialogOpenChange(open: boolean) {
+    setCartDialogOpen(open);
+
+    if (!open) {
+      setSelectedProduct(null);
+      setSelectedQuantity("1");
+      setCartError(null);
+    }
+  }
+
+  function handleAddToCart() {
+    if (!selectedProduct) return;
+
+    const quantity = Number.parseInt(selectedQuantity, 10);
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      setCartError("Quantity must be at least 1.");
+      return;
+    }
+
+    if (quantity > selectedProductAvailableQuantity) {
+      setCartError(
+        `You can add up to ${selectedProductAvailableQuantity} item${selectedProductAvailableQuantity === 1 ? "" : "s"}.`,
+      );
+      return;
+    }
+
+    addItem(selectedProduct.id, selectedProduct.name, quantity);
+    handleCartDialogOpenChange(false);
   }
 
   useEffect(() => {
@@ -163,6 +243,63 @@ export default function ProductsPage() {
         </div>
       </form>
 
+      <Dialog open={cartDialogOpen} onOpenChange={handleCartDialogOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedProduct
+                ? `Add ${selectedProduct.name} to cart`
+                : "Add to cart"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedProduct
+                ? `Choose quantity. You can add up to ${selectedProductAvailableQuantity} item${selectedProductAvailableQuantity === 1 ? "" : "s"}.`
+                : "Choose quantity for this product."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {cartError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{cartError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <Field>
+            <FieldLabel htmlFor="cart-quantity">Quantity</FieldLabel>
+            <Input
+              id="cart-quantity"
+              type="number"
+              min={1}
+              max={selectedProductAvailableQuantity}
+              value={selectedQuantity}
+              onChange={(event) => {
+                setSelectedQuantity(event.target.value);
+                setCartError(null);
+              }}
+              disabled={selectedProductAvailableQuantity === 0}
+            />
+          </Field>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleCartDialogOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={selectedProductAvailableQuantity === 0}
+            >
+              <ShoppingCart />
+              Add to cart
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {error ? (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -182,7 +319,9 @@ export default function ProductsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {products.map((product) => {
-            const isOutOfStock = product.quantity === 0;
+            const quantityInCart = cartQuantityByProduct.get(product.id) ?? 0;
+            const availableQuantity = getAvailableQuantity(product);
+            const isOutOfStock = availableQuantity === 0;
 
             return (
               <Card key={product.id} className="h-full justify-between border">
@@ -201,8 +340,14 @@ export default function ProductsPage() {
                     <p className="text-sm text-muted-foreground">
                       {isOutOfStock
                         ? "Out of stock"
-                        : `${product.quantity} item${product.quantity === 1 ? "" : "s"} available`}
+                        : `${availableQuantity} item${availableQuantity === 1 ? "" : "s"} available`}
                     </p>
+                    {quantityInCart > 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {quantityInCart} item{quantityInCart === 1 ? "" : "s"}{" "}
+                        in cart
+                      </p>
+                    ) : null}
                   </div>
                 </CardContent>
 
@@ -211,6 +356,7 @@ export default function ProductsPage() {
                     type="button"
                     className="w-full"
                     disabled={isOutOfStock}
+                    onClick={() => openCartDialog(product)}
                   >
                     <ShoppingCart />
                     Add to cart
