@@ -37,6 +37,8 @@ function buildProductsPath(query?: PaginationQueryDto) {
 export const productsApi = {
   list: (token?: string, query?: PaginationQueryDto) =>
     request<PaginatedResponse<Product>>(buildProductsPath(query), {}, token),
+  get: (id: string, token?: string) =>
+    request<Product>(`/api/products/${id}`, {}, token),
   create: (token: string, input: ProductInput) =>
     request<Product>(
       "/api/products",
