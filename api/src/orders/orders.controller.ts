@@ -23,6 +23,11 @@ export class OrdersController {
     return this.ordersService.create(dto);
   }
 
+  @Post(':id/cancel')
+  cancel(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ordersService.cancel(id);
+  }
+
   @Post(':id/verify-payment')
   verifyPayment(
     @Param('id', ParseUUIDPipe) id: string,

@@ -12,6 +12,8 @@ export enum OrderStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
   FAILED = 'failed',
+  CANCELLED = 'cancelled',
+  EXPIRED = 'expired',
 }
 
 @Entity()

@@ -1,15 +1,20 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, LessThan, Repository } from 'typeorm';
 import { createPublicClient, http, parseEther } from 'viem';
 import { sepolia } from 'viem/chains';
-import { PaginatedResponse, PaginationMeta } from '../products/dto/paginated-response.dto';
+import {
+  PaginatedResponse,
+  PaginationMeta,
+} from '../products/dto/paginated-response.dto';
 import { Product } from '../products/entities/product.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
@@ -35,8 +40,12 @@ const chainlinkAggregatorAbi = [
   },
 ] as const;
 
+const PENDING_ORDER_TTL_MINUTES = 15;
+
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   private readonly viemClient = createPublicClient({
     chain: sepolia,
     transport: http(),
@@ -95,7 +104,7 @@ export class OrdersService {
             productId: product.id,
             productName: product.name,
             quantity: item.quantity,
-            unitPrice: unitPriceUsd,  // stored in USD
+            unitPrice: unitPriceUsd, // stored in USD
           }),
         );
       }
@@ -155,6 +164,49 @@ export class OrdersService {
 
     order.status = OrderStatus.CONFIRMED;
     return this.orderRepo.save(order);
+  }
+
+  async cancel(orderId: string): Promise<Order> {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException(`Order #${orderId} not found`);
+    if (order.status !== OrderStatus.PENDING) {
+      throw new ConflictException('Only pending orders can be cancelled');
+    }
+    return this.restoreStockAndSetStatus(order, OrderStatus.CANCELLED);
+  }
+
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async expireStaleOrders(): Promise<void> {
+    const cutoff = new Date(Date.now() - PENDING_ORDER_TTL_MINUTES * 60 * 1000);
+    const stale = await this.orderRepo.find({
+      where: { status: OrderStatus.PENDING, createdAt: LessThan(cutoff) },
+    });
+    if (stale.length === 0) return;
+
+    this.logger.log(`Expiring ${stale.length} stale pending order(s)`);
+    await Promise.all(
+      stale.map((order) =>
+        this.restoreStockAndSetStatus(order, OrderStatus.EXPIRED),
+      ),
+    );
+  }
+
+  private async restoreStockAndSetStatus(
+    order: Order,
+    status: OrderStatus.CANCELLED | OrderStatus.EXPIRED,
+  ): Promise<Order> {
+    return this.dataSource.transaction(async (manager) => {
+      for (const item of order.items) {
+        await manager.increment(
+          Product,
+          { id: item.productId },
+          'quantity',
+          item.quantity,
+        );
+      }
+      order.status = status;
+      return manager.save(order);
+    });
   }
 
   async findAll(query: {

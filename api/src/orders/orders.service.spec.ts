@@ -11,6 +11,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { Order, OrderStatus } from './entities/order.entity';
+import { LessThan } from 'typeorm';
 import { OrdersService } from './orders.service';
 
 const makeOrder = (overrides: Partial<Order> = {}): Order =>
@@ -38,13 +39,14 @@ describe('OrdersService', () => {
   let orderRepo: jest.Mocked<
     Pick<Repository<Order>, 'find' | 'findOne' | 'save' | 'findAndCount'>
   >;
-  let mockManager: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
+  let mockManager: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock; increment: jest.Mock };
 
   beforeEach(async () => {
     mockManager = {
       findOne: jest.fn(),
       save: jest.fn(),
       create: jest.fn(),
+      increment: jest.fn().mockResolvedValue(undefined),
     };
 
     orderRepo = {
@@ -212,6 +214,70 @@ describe('OrdersService', () => {
       await expect(service.verifyPayment('order-uuid-1', dto)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('cancel', () => {
+    it('restores stock and sets status to CANCELLED', async () => {
+      const order = makeOrder({
+        items: [
+          Object.assign(new OrderItem(), { productId: 'prod-1', quantity: 2 }),
+        ],
+      });
+      orderRepo.findOne.mockResolvedValue(order);
+      mockManager.save.mockImplementation(async (o) => o as Order);
+
+      const result = await service.cancel('order-uuid-1');
+
+      expect(mockManager.increment).toHaveBeenCalledWith(
+        expect.anything(),
+        { id: 'prod-1' },
+        'quantity',
+        2,
+      );
+      expect(result.status).toBe(OrderStatus.CANCELLED);
+    });
+
+    it('throws NotFoundException when order does not exist', async () => {
+      orderRepo.findOne.mockResolvedValue(null);
+      await expect(service.cancel('order-uuid-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ConflictException when order is not pending', async () => {
+      orderRepo.findOne.mockResolvedValue(makeOrder({ status: OrderStatus.CONFIRMED }));
+      await expect(service.cancel('order-uuid-1')).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('expireStaleOrders', () => {
+    it('expires stale pending orders and restores stock', async () => {
+      const order = makeOrder({
+        items: [
+          Object.assign(new OrderItem(), { productId: 'prod-1', quantity: 3 }),
+        ],
+      });
+      orderRepo.find.mockResolvedValue([order]);
+      mockManager.save.mockImplementation(async (o) => o as Order);
+
+      await service.expireStaleOrders();
+
+      expect(orderRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: OrderStatus.PENDING }),
+        }),
+      );
+      expect(mockManager.increment).toHaveBeenCalledWith(
+        expect.anything(),
+        { id: 'prod-1' },
+        'quantity',
+        3,
+      );
+    });
+
+    it('does nothing when no stale orders exist', async () => {
+      orderRepo.find.mockResolvedValue([]);
+      await service.expireStaleOrders();
+      expect(mockManager.increment).not.toHaveBeenCalled();
     });
   });
 
