@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
@@ -78,6 +78,8 @@ export default function CheckoutPage() {
   } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({ hash: txHash });
+
+  const verifyCalledRef = useRef(false);
 
   const form = useForm<InfoFormInput, unknown, InfoFormValues>({
     resolver: zodResolver(infoSchema),
@@ -169,9 +171,12 @@ export default function CheckoutPage() {
     })();
   }, [step, isConnected, address, pendingFormValues, submitting, items]);
 
-  // Verify payment after on-chain confirmation
+  // Verify payment after on-chain confirmation.
+  // Uses a ref guard so this runs exactly once per txHash — prevents re-triggering
+  // after setVerifying(false) in the finally block flips the state back.
   useEffect(() => {
-    if (!isConfirmed || !txHash || !orderId || verifying) return;
+    if (!isConfirmed || !txHash || !orderId || verifyCalledRef.current) return;
+    verifyCalledRef.current = true;
 
     void (async () => {
       try {
@@ -184,11 +189,12 @@ export default function CheckoutPage() {
         setError(
           err instanceof Error ? err.message : "Payment verification failed",
         );
+        verifyCalledRef.current = false;
       } finally {
         setVerifying(false);
       }
     })();
-  }, [isConfirmed, txHash, orderId, verifying, clearCart]);
+  }, [isConfirmed, txHash, orderId, clearCart]);
 
   const estimatedTotal = useMemo(() => {
     return items.reduce((sum, item) => {
