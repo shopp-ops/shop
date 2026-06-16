@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Package, ShoppingCart } from "lucide-react";
+import { ClipboardList, LogOut, Package, ShoppingCart } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,13 @@ export function Navbar() {
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/admin">
                   <Package />
-                  Product management
+                  Products
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/admin/orders">
+                  <ClipboardList />
+                  Orders
                 </Link>
               </Button>
 

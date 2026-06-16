@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -13,7 +15,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ordersApi, type Order } from "@/lib/api/orders";
+import type { PaginationMeta } from "@/lib/api/pagination";
 import { useAuth } from "@/lib/auth-context";
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+const DEFAULT_PAGE_SIZE = 20;
+
+const DEFAULT_META: PaginationMeta = {
+  totalItems: 0,
+  itemCount: 0,
+  itemsPerPage: DEFAULT_PAGE_SIZE,
+  totalPages: 1,
+  currentPage: 1,
+};
 
 function formatEth(value: number | string) {
   const n = typeof value === "string" ? parseFloat(value) : value;
@@ -34,6 +48,9 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
+  const [meta, setMeta] = useState<PaginationMeta>(DEFAULT_META);
 
   useEffect(() => {
     if (!token) return;
@@ -43,8 +60,11 @@ export default function AdminOrdersPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await ordersApi.list(token!);
-        if (!ignore) setOrders(data);
+        const response = await ordersApi.list(token!, page, limit);
+        if (!ignore) {
+          setOrders(response.data);
+          setMeta(response.meta);
+        }
       } catch (err) {
         if (!ignore)
           setError(
@@ -59,7 +79,12 @@ export default function AdminOrdersPage() {
     return () => {
       ignore = true;
     };
-  }, [token]);
+  }, [token, page, limit]);
+
+  const paginationSummary =
+    meta.totalItems === 0
+      ? "Showing 0 of 0 orders"
+      : `Showing ${(meta.currentPage - 1) * meta.itemsPerPage + 1}–${(meta.currentPage - 1) * meta.itemsPerPage + meta.itemCount} of ${meta.totalItems} orders`;
 
   return (
     <section className="space-y-6">
@@ -140,6 +165,58 @@ export default function AdminOrdersPage() {
             )}
           </TableBody>
         </Table>
+
+        <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">{paginationSummary}</p>
+          <div className="flex flex-col gap-3 self-end sm:flex-row sm:items-center sm:self-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Items per page
+              </span>
+              <Select
+                value={String(limit)}
+                onValueChange={(val) => {
+                  setLimit(Number(val));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-22">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt} value={String(opt)}>
+                      {opt}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={loading || page <= 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {meta.currentPage} of {Math.max(meta.totalPages, 1)}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={loading || page >= Math.max(meta.totalPages, 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
