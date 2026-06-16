@@ -98,7 +98,7 @@ describe('OrdersService', () => {
         id: 'prod-1',
         name: 'Widget',
         quantity: 5,
-        price: '0.025',
+        price: '50.00',  // USD price
       };
       mockManager.findOne.mockResolvedValue(product);
       mockManager.create.mockImplementation(
@@ -110,6 +110,9 @@ describe('OrdersService', () => {
         }
         return entity;
       });
+      // ETH/USD = 2000 → 100 USD / 2000 = 0.05 ETH
+      jest.spyOn(service as unknown as { getEthUsdRate: () => Promise<number> }, 'getEthUsdRate')
+        .mockResolvedValue(2000);
 
       const result = await service.create(dto);
 

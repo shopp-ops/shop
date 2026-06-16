@@ -16,12 +16,41 @@ import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { Order, OrderStatus } from './entities/order.entity';
 
+const CHAINLINK_ETH_USD_SEPOLIA =
+  '0x694AA1769357215DE4FAC081bf1f309aDC325306' as const;
+
+const chainlinkAggregatorAbi = [
+  {
+    inputs: [],
+    name: 'latestRoundData',
+    outputs: [
+      { name: 'roundId', type: 'uint80' },
+      { name: 'answer', type: 'int256' },
+      { name: 'startedAt', type: 'uint256' },
+      { name: 'updatedAt', type: 'uint256' },
+      { name: 'answeredInRound', type: 'uint80' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
+
 @Injectable()
 export class OrdersService {
   private readonly viemClient = createPublicClient({
     chain: sepolia,
     transport: http(),
   });
+
+  private async getEthUsdRate(): Promise<number> {
+    const result = await this.viemClient.readContract({
+      address: CHAINLINK_ETH_USD_SEPOLIA,
+      abi: chainlinkAggregatorAbi,
+      functionName: 'latestRoundData',
+    });
+    // answer is int256 with 8 decimal places, e.g. 342015000000 = $3420.15
+    return Number(result[1]) / 1e8;
+  }
 
   constructor(
     @InjectRepository(Order) private orderRepo: Repository<Order>,
@@ -58,25 +87,28 @@ export class OrdersService {
         product.quantity -= item.quantity;
         await manager.save(product);
 
-        const unitPrice = Number(product.price);
-        total = parseFloat((total + unitPrice * item.quantity).toFixed(18));
+        const unitPriceUsd = Number(product.price);
+        total = parseFloat((total + unitPriceUsd * item.quantity).toFixed(10));
 
         orderItems.push(
           manager.create(OrderItem, {
             productId: product.id,
             productName: product.name,
             quantity: item.quantity,
-            unitPrice,
+            unitPrice: unitPriceUsd,  // stored in USD
           }),
         );
       }
+
+      const ethUsdRate = await this.getEthUsdRate();
+      const totalEth = parseFloat((total / ethUsdRate).toFixed(18));
 
       const order = manager.create(Order, {
         status: OrderStatus.PENDING,
         customerName: dto.customerName,
         shippingAddress: dto.shippingAddress,
         walletAddress: dto.walletAddress,
-        totalAmount: total,
+        totalAmount: totalEth,
         txHash: null,
         items: orderItems as OrderItem[],
       });
@@ -84,7 +116,7 @@ export class OrdersService {
       const saved = await manager.save(order);
       return {
         orderId: saved.id,
-        totalAmount: String(total),
+        totalAmount: String(totalEth),
         shopWalletAddress,
       };
     });
