@@ -14,6 +14,7 @@ type CartStore = {
   addItem: (productId: string, productName: string, quantity: number) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
+  clearCart: () => void;
 };
 
 export const useCartStore = create<CartStore>()(
@@ -74,6 +75,7 @@ export const useCartStore = create<CartStore>()(
           items: state.items.filter((item) => item.productId !== productId),
         }));
       },
+      clearCart: () => set({ items: [] }),
     }),
     {
       name: "shopping-cart",
