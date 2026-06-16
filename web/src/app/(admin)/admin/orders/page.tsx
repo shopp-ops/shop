@@ -34,6 +34,13 @@ function formatEth(value: number | string) {
   return `${Number.isFinite(n) ? n.toFixed(6).replace(/\.?0+$/, "") : "0"} ETH`;
 }
 
+function formatPrice(value: number | string) {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  return Number.isFinite(n)
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
+    : "$0.00";
+}
+
 const STATUS_VARIANT: Record<
   Order["status"],
   "default" | "secondary" | "destructive"
@@ -144,7 +151,10 @@ export default function AdminOrdersPage() {
                   <TableCell>
                     {order.items.map((item) => (
                       <div key={item.id} className="text-sm">
-                        {item.productName} × {item.quantity}
+                        {item.productName} × {item.quantity}{" "}
+                        <span className="text-muted-foreground">
+                          ({formatPrice(item.unitPrice)} each)
+                        </span>
                       </div>
                     ))}
                   </TableCell>

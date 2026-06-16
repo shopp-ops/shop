@@ -19,9 +19,11 @@ import { Input } from "@/components/ui/input";
 import { productsApi, type Product } from "@/lib/api/products";
 import { useCartStore } from "@/lib/cart-store";
 
-function formatEth(value: number | string) {
+function formatPrice(value: number | string) {
   const n = typeof value === "string" ? parseFloat(value) : value;
-  return `${Number.isFinite(n) ? n.toFixed(6).replace(/\.?0+$/, "") : "0"} ETH`;
+  return Number.isFinite(n)
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
+    : "$0.00";
 }
 
 export default function CartPage() {
@@ -255,7 +257,7 @@ export default function CartPage() {
                     <div>
                       <p className="text-muted-foreground">Unit price</p>
                       <p className="font-medium">
-                        {product ? formatEth(product.price) : "Unavailable"}
+                        {product ? formatPrice(product.price) : "Unavailable"}
                       </p>
                     </div>
                     <div>
@@ -340,7 +342,7 @@ export default function CartPage() {
                     <p className="font-medium">
                       {lineTotal === null
                         ? "Unavailable"
-                        : formatEth(lineTotal)}
+                        : formatPrice(lineTotal)}
                     </p>
                   </div>
                   <Button
@@ -375,7 +377,7 @@ export default function CartPage() {
             </div>
             <div className="flex items-center justify-between text-base font-semibold">
               <span>Total</span>
-              <span>{formatEth(totalPrice)}</span>
+              <span>{formatPrice(totalPrice)}</span>
             </div>
           </CardContent>
           <CardFooter>

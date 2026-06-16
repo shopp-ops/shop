@@ -37,9 +37,11 @@ const DEFAULT_PAGINATION_META: PaginationMeta = {
   currentPage: 1,
 };
 
-function formatEth(value: Product["price"]) {
+function formatPrice(value: Product["price"]) {
   const n = typeof value === "string" ? parseFloat(value) : value;
-  return `${Number.isFinite(n) ? n.toFixed(6).replace(/\.?0+$/, "") : "0"} ETH`;
+  return Number.isFinite(n)
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
+    : "$0.00";
 }
 
 export default function ProductsPage() {
@@ -328,7 +330,7 @@ export default function ProductsPage() {
                 <CardContent className="space-y-3">
                   <div>
                     <p className="text-2xl font-semibold">
-                      {formatEth(product.price)}
+                      {formatPrice(product.price)}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {isOutOfStock
