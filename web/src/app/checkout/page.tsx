@@ -87,6 +87,9 @@ export default function CheckoutPage() {
     useWaitForTransactionReceipt({ hash: txHash });
 
   const verifyCalledRef = useRef(false);
+  // Refs keep latest values accessible in the unmount cleanup without re-registering the effect
+  const orderIdRef = useRef<string | null>(null);
+  const stepRef = useRef<Step>("info");
 
   const form = useForm<InfoFormInput, unknown, InfoFormValues>({
     resolver: zodResolver(infoSchema),
@@ -98,6 +101,19 @@ export default function CheckoutPage() {
       zip: "",
     },
   });
+
+  // Sync refs so unmount cleanup always sees the latest values
+  useEffect(() => { orderIdRef.current = orderId; }, [orderId]);
+  useEffect(() => { stepRef.current = step; }, [step]);
+
+  // Best-effort cancel on navigate-away — cron job handles sudden tab closes
+  useEffect(() => {
+    return () => {
+      if (orderIdRef.current && stepRef.current !== "success") {
+        void ordersApi.cancel(orderIdRef.current);
+      }
+    };
+  }, []);
 
   // Fetch product prices to show estimated total
   useEffect(() => {

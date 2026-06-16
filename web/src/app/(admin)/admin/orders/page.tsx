@@ -43,11 +43,13 @@ function formatPrice(value: number | string) {
 
 const STATUS_VARIANT: Record<
   Order["status"],
-  "default" | "secondary" | "destructive"
+  "default" | "secondary" | "destructive" | "outline"
 > = {
   pending: "secondary",
   confirmed: "default",
   failed: "destructive",
+  cancelled: "outline",
+  expired: "outline",
 };
 
 export default function AdminOrdersPage() {

@@ -31,7 +31,7 @@ export type OrderItem = {
 
 export type Order = {
   id: string;
-  status: "pending" | "confirmed" | "failed";
+  status: "pending" | "confirmed" | "failed" | "cancelled" | "expired";
   customerName: string;
   shippingAddress: ShippingAddress;
   walletAddress: string;
@@ -53,6 +53,8 @@ export const ordersApi = {
       method: "POST",
       body: JSON.stringify({ txHash }),
     }),
+  cancel: (orderId: string) =>
+    request<Order>(`/api/orders/${orderId}/cancel`, { method: "POST" }),
   list: (token: string, page = 1, limit = 20) =>
     request<PaginatedResponse<Order>>(
       `/api/orders?page=${page}&limit=${limit}`,
