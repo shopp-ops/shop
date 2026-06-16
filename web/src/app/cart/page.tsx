@@ -19,13 +19,9 @@ import { Input } from "@/components/ui/input";
 import { productsApi, type Product } from "@/lib/api/products";
 import { useCartStore } from "@/lib/cart-store";
 
-function formatPrice(price: number | string) {
-  const numericPrice = typeof price === "string" ? Number(price) : price;
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(Number.isFinite(numericPrice) ? numericPrice : 0);
+function formatEth(value: number | string) {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  return `${Number.isFinite(n) ? n.toFixed(6).replace(/\.?0+$/, "") : "0"} ETH`;
 }
 
 export default function CartPage() {
@@ -259,7 +255,7 @@ export default function CartPage() {
                     <div>
                       <p className="text-muted-foreground">Unit price</p>
                       <p className="font-medium">
-                        {product ? formatPrice(product.price) : "Unavailable"}
+                        {product ? formatEth(product.price) : "Unavailable"}
                       </p>
                     </div>
                     <div>
@@ -344,7 +340,7 @@ export default function CartPage() {
                     <p className="font-medium">
                       {lineTotal === null
                         ? "Unavailable"
-                        : formatPrice(lineTotal)}
+                        : formatEth(lineTotal)}
                     </p>
                   </div>
                   <Button
@@ -379,12 +375,12 @@ export default function CartPage() {
             </div>
             <div className="flex items-center justify-between text-base font-semibold">
               <span>Total</span>
-              <span>{formatPrice(totalPrice)}</span>
+              <span>{formatEth(totalPrice)}</span>
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="button" className="w-full">
-              Proceed to checkout
+            <Button asChild className="w-full">
+              <Link href="/checkout">Proceed to checkout</Link>
             </Button>
           </CardFooter>
         </Card>
