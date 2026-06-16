@@ -37,6 +37,13 @@ function formatEth(value: number | string) {
   return `${Number.isFinite(n) ? n.toFixed(6).replace(/\.?0+$/, "") : "0"} ETH`;
 }
 
+function formatPrice(value: number | string) {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  return Number.isFinite(n)
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
+    : "$0.00";
+}
+
 const infoSchema = z.object({
   customerName: z.string().trim().min(1, "Name is required"),
   street: z.string().trim().min(1, "Street is required"),
@@ -305,14 +312,14 @@ export default function CheckoutPage() {
                       {item.productName} × {item.quantity}
                     </span>
                     <span>
-                      {lineTotal !== null ? formatEth(lineTotal) : "..."}
+                      {lineTotal !== null ? formatPrice(lineTotal) : "..."}
                     </span>
                   </div>
                 );
               })}
               <div className="flex justify-between border-t pt-2 font-semibold">
                 <span>Estimated total</span>
-                <span>{formatEth(estimatedTotal)}</span>
+                <span>{formatPrice(estimatedTotal)}</span>
               </div>
             </div>
 
@@ -457,9 +464,14 @@ export default function CheckoutPage() {
             <div className="space-y-2 rounded-lg bg-muted/50 p-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount</span>
-                <span className="font-semibold">
-                  {totalAmount ? formatEth(totalAmount) : "—"}
-                </span>
+                <div className="text-right">
+                  <div className="font-semibold">
+                    {totalAmount ? formatEth(totalAmount) : "—"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatPrice(estimatedTotal)}
+                  </div>
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Recipient</span>
@@ -512,7 +524,7 @@ export default function CheckoutPage() {
                   ? "Waiting for confirmation..."
                   : verifying
                     ? "Verifying..."
-                    : `Pay ${totalAmount ? formatEth(totalAmount) : ""}`}
+                    : `Pay ${totalAmount ? formatEth(totalAmount) : ""} (${formatPrice(estimatedTotal)})`}
             </Button>
           </CardFooter>
         </Card>
@@ -535,7 +547,12 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount paid</span>
-                <span>{totalAmount ? formatEth(totalAmount) : "—"}</span>
+                <div className="text-right">
+                  <div>{totalAmount ? formatEth(totalAmount) : "—"}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatPrice(estimatedTotal)}
+                  </div>
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Transaction</span>
