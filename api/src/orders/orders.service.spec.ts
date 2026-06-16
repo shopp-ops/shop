@@ -36,7 +36,7 @@ const makeOrder = (overrides: Partial<Order> = {}): Order =>
 describe('OrdersService', () => {
   let service: OrdersService;
   let orderRepo: jest.Mocked<
-    Pick<Repository<Order>, 'find' | 'findOne' | 'save'>
+    Pick<Repository<Order>, 'find' | 'findOne' | 'save' | 'findAndCount'>
   >;
   let mockManager: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
 
@@ -51,6 +51,7 @@ describe('OrdersService', () => {
       find: jest.fn(),
       findOne: jest.fn(),
       save: jest.fn(),
+      findAndCount: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -212,16 +213,27 @@ describe('OrdersService', () => {
   });
 
   describe('findAll', () => {
-    it('returns orders sorted newest first', async () => {
+    it('returns paginated orders sorted newest first', async () => {
       const orders = [makeOrder(), makeOrder({ id: 'order-uuid-2' })];
-      orderRepo.find.mockResolvedValue(orders);
+      orderRepo.findAndCount.mockResolvedValue([orders, 2]);
 
-      const result = await service.findAll();
+      const result = await service.findAll({ page: 1, limit: 20 });
 
-      expect(orderRepo.find).toHaveBeenCalledWith({
+      expect(orderRepo.findAndCount).toHaveBeenCalledWith({
         order: { createdAt: 'DESC' },
+        take: 20,
+        skip: 0,
       });
-      expect(result).toEqual(orders);
+      expect(result).toEqual({
+        data: orders,
+        meta: {
+          totalItems: 2,
+          itemCount: 2,
+          itemsPerPage: 20,
+          totalPages: 1,
+          currentPage: 1,
+        },
+      });
     });
   });
 });

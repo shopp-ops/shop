@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { createPublicClient, http, parseEther } from 'viem';
 import { sepolia } from 'viem/chains';
+import { PaginatedResponse, PaginationMeta } from '../products/dto/paginated-response.dto';
 import { Product } from '../products/entities/product.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
@@ -124,9 +125,27 @@ export class OrdersService {
     return this.orderRepo.save(order);
   }
 
-  findAll(): Promise<Order[]> {
-    return this.orderRepo.find({
+  async findAll(query: {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Order>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const [data, totalItems] = await this.orderRepo.findAndCount({
       order: { createdAt: 'DESC' },
+      take: limit,
+      skip: (page - 1) * limit,
     });
+
+    const meta: PaginationMeta = {
+      totalItems,
+      itemCount: data.length,
+      itemsPerPage: limit,
+      totalPages: Math.ceil(totalItems / limit),
+      currentPage: page,
+    };
+
+    return { data, meta };
   }
 }

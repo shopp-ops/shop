@@ -1,4 +1,5 @@
 import { request } from "./client";
+import type { PaginatedResponse } from "./pagination";
 
 export type ShippingAddress = {
   street: string;
@@ -52,5 +53,10 @@ export const ordersApi = {
       method: "POST",
       body: JSON.stringify({ txHash }),
     }),
-  list: (token: string) => request<Order[]>("/api/orders", {}, token),
+  list: (token: string, page = 1, limit = 20) =>
+    request<PaginatedResponse<Order>>(
+      `/api/orders?page=${page}&limit=${limit}`,
+      {},
+      token,
+    ),
 };

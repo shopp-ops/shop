@@ -5,9 +5,11 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PaginationQueryDto } from '../products/dto/pagination-query.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { OrdersService } from './orders.service';
@@ -31,7 +33,7 @@ export class OrdersController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  findAll() {
-    return this.ordersService.findAll();
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.ordersService.findAll(query);
   }
 }
