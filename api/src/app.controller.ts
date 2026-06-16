@@ -18,7 +18,7 @@ export class AppController {
   getConfig() {
     return {
       shopWalletAddress:
-        this.configService.getOrThrow<string>('SHOP_WALLET_ADDRESS'),
+        this.configService.getOrThrow<string>('WALLET_ADDRESS'),
     };
   }
 }

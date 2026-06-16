@@ -33,9 +33,7 @@ export class OrdersService {
     totalAmount: string;
     shopWalletAddress: string;
   }> {
-    const shopWalletAddress = this.config.getOrThrow<string>(
-      'SHOP_WALLET_ADDRESS',
-    );
+    const shopWalletAddress = this.config.getOrThrow<string>('WALLET_ADDRESS');
 
     return this.dataSource.transaction(async (manager) => {
       let total = 0;
@@ -100,9 +98,7 @@ export class OrdersService {
       throw new ConflictException('Order is not in a pending state');
     }
 
-    const shopWalletAddress = this.config.getOrThrow<string>(
-      'SHOP_WALLET_ADDRESS',
-    );
+    const shopWalletAddress = this.config.getOrThrow<string>('WALLET_ADDRESS');
     const txHash = dto.txHash as `0x${string}`;
 
     const [tx, receipt] = await Promise.all([
