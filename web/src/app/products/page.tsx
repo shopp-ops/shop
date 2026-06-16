@@ -37,13 +37,9 @@ const DEFAULT_PAGINATION_META: PaginationMeta = {
   currentPage: 1,
 };
 
-function formatPrice(price: Product["price"]) {
-  const numericPrice = typeof price === "string" ? Number(price) : price;
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(Number.isFinite(numericPrice) ? numericPrice : 0);
+function formatEth(value: Product["price"]) {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  return `${Number.isFinite(n) ? n.toFixed(6).replace(/\.?0+$/, "") : "0"} ETH`;
 }
 
 export default function ProductsPage() {
@@ -332,7 +328,7 @@ export default function ProductsPage() {
                 <CardContent className="space-y-3">
                   <div>
                     <p className="text-2xl font-semibold">
-                      {formatPrice(product.price)}
+                      {formatEth(product.price)}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {isOutOfStock

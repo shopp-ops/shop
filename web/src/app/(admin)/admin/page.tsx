@@ -60,13 +60,9 @@ const schema = z.object({
 type FormValues = z.output<typeof schema>;
 type FormInput = z.input<typeof schema>;
 
-function formatPrice(price: Product["price"]) {
-  const numericPrice = typeof price === "string" ? Number(price) : price;
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(Number.isFinite(numericPrice) ? numericPrice : 0);
+function formatEth(value: Product["price"]) {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  return `${Number.isFinite(n) ? n.toFixed(6).replace(/\.?0+$/, "") : "0"} ETH`;
 }
 
 export default function AdminPage() {
@@ -409,14 +405,14 @@ export default function AdminPage() {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="price">Price ($)</FieldLabel>
+                    <FieldLabel htmlFor="price">Price (ETH)</FieldLabel>
                     <Input
                       {...field}
                       value={String(field.value ?? "")}
                       id="price"
                       type="number"
                       min={0}
-                      step="0.01"
+                      step="any"
                       aria-invalid={fieldState.invalid}
                     />
                     <FieldError errors={[fieldState.error]} />
@@ -535,7 +531,7 @@ export default function AdminPage() {
                 <TableRow key={product.id}>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.quantity}</TableCell>
-                  <TableCell>{formatPrice(product.price)}</TableCell>
+                  <TableCell>{formatEth(product.price)}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {product.id}
                   </TableCell>
