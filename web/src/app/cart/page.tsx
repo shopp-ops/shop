@@ -19,13 +19,11 @@ import { Input } from "@/components/ui/input";
 import { productsApi, type Product } from "@/lib/api/products";
 import { useCartStore } from "@/lib/cart-store";
 
-function formatPrice(price: number | string) {
-  const numericPrice = typeof price === "string" ? Number(price) : price;
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(Number.isFinite(numericPrice) ? numericPrice : 0);
+function formatPrice(value: number | string) {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  return Number.isFinite(n)
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
+    : "$0.00";
 }
 
 export default function CartPage() {
@@ -383,8 +381,8 @@ export default function CartPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="button" className="w-full">
-              Proceed to checkout
+            <Button asChild className="w-full">
+              <Link href="/checkout">Proceed to checkout</Link>
             </Button>
           </CardFooter>
         </Card>

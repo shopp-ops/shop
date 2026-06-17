@@ -54,19 +54,17 @@ const DEFAULT_PAGINATION_META: PaginationMeta = {
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   quantity: z.coerce.number().int().min(0, "Quantity cannot be negative"),
-  price: z.coerce.number().positive("Price must be greater than 0"),
+  price: z.coerce.number().min(0.01, "Price must be at least $0.01"),
 });
 
 type FormValues = z.output<typeof schema>;
 type FormInput = z.input<typeof schema>;
 
-function formatPrice(price: Product["price"]) {
-  const numericPrice = typeof price === "string" ? Number(price) : price;
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(Number.isFinite(numericPrice) ? numericPrice : 0);
+function formatPrice(value: Product["price"]) {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  return Number.isFinite(n)
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
+    : "$0.00";
 }
 
 export default function AdminPage() {
@@ -409,13 +407,13 @@ export default function AdminPage() {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="price">Price ($)</FieldLabel>
+                    <FieldLabel htmlFor="price">Price (USD)</FieldLabel>
                     <Input
                       {...field}
                       value={String(field.value ?? "")}
                       id="price"
                       type="number"
-                      min={0}
+                      min={0.01}
                       step="0.01"
                       aria-invalid={fieldState.invalid}
                     />

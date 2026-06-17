@@ -37,13 +37,11 @@ const DEFAULT_PAGINATION_META: PaginationMeta = {
   currentPage: 1,
 };
 
-function formatPrice(price: Product["price"]) {
-  const numericPrice = typeof price === "string" ? Number(price) : price;
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(Number.isFinite(numericPrice) ? numericPrice : 0);
+function formatPrice(value: Product["price"]) {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  return Number.isFinite(n)
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
+    : "$0.00";
 }
 
 export default function ProductsPage() {
