@@ -5,8 +5,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { isStandardDatabaseDriver } from './database/database-driver';
 import { OrdersModule } from './orders/orders.module';
 import { ProductsModule } from './products/products.module';
+
+const useStandardDatabase = isStandardDatabaseDriver();
 
 @Module({
   imports: [
@@ -15,15 +18,19 @@ import { ProductsModule } from './products/products.module';
     AuthModule,
     ProductsModule,
     OrdersModule,
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        url: config.getOrThrow<string>('DATABASE_URL'),
-        autoLoadEntities: true,
-        synchronize: config.get('NODE_ENV') !== 'production',
-      }),
-    }),
+    ...(useStandardDatabase
+      ? [
+          TypeOrmModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: (config: ConfigService) => ({
+              type: 'postgres' as const,
+              url: config.getOrThrow<string>('DATABASE_URL'),
+              autoLoadEntities: true,
+              synchronize: config.get('NODE_ENV') !== 'production',
+            }),
+          }),
+        ]
+      : []),
   ],
   controllers: [AppController],
   providers: [AppService],
