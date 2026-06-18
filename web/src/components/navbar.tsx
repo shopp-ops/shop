@@ -8,15 +8,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useCartStore } from "@/lib/cart-store";
+import { useState, useEffect } from "react";
+import { request } from "@/lib/api/client";
 
 export function Navbar() {
   const { user, logout, loading } = useAuth();
+  const [shopName, setShopName] = useState("SHOP");
+
   const router = useRouter();
   const pathname = usePathname();
   const cartItems = useCartStore((state) => state.items);
 
   const isAdmin = Boolean(user);
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  useEffect(() => {
+    request<{ shopName: string }>("/api/config")
+      .then((config) => setShopName(config.shopName))
+      .catch((err) => console.error(err));
+  }, []);
 
   function handleLogout() {
     logout();
@@ -27,8 +37,6 @@ export function Navbar() {
     return null;
   }
 
-  const SHOP_NAME = process.env.NEXT_PUBLIC_SHOP_NAME ?? "SHOP";
-
   return (
     <header className="border-b bg-background">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
@@ -36,7 +44,7 @@ export function Navbar() {
           href={isAdmin ? "/admin" : "/products"}
           className="text-sm font-semibold tracking-tight"
         >
-          {SHOP_NAME}
+          {shopName}
         </Link>
 
         <div className="flex items-center gap-2">
