@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { CreateProductDto } from '../dto/create-product.dto';
 import {
   PaginatedResponse,

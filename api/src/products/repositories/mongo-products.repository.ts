@@ -124,7 +124,7 @@ export class MongoProductsRepository
     }
 
     if (!this.connectionPromise) {
-      const uri = this.config.getOrThrow<string>('MONGODB_URL');
+      const uri = this.config.getOrThrow<string>('DATABASE_URL');
       this.connectionPromise = createConnection(uri)
         .asPromise()
         .then((connection) => {
