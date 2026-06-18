@@ -1,69 +1,54 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Product } from './entities/product.entity';
-import { NotFoundException } from '@nestjs/common';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { PaginatedResponse } from './dto/paginated-response.dto';
-import { PaginationMeta } from './dto/paginated-response.dto';
-import { ILike } from 'typeorm';
+import { UpdateProductDto } from './dto/update-product.dto';
+import {
+  ProductRecord,
+  ProductsRepository,
+} from './repositories/products.repository';
 
 @Injectable()
 export class ProductsService {
-  constructor(@InjectRepository(Product) private repo: Repository<Product>) {}
+  constructor(private readonly productsRepository: ProductsRepository) {}
 
-  create(createProductDto: CreateProductDto) {
-    const product = this.repo.create({
-      ...createProductDto,
-      quantity: createProductDto.quantity ?? 0,
-    });
-    return this.repo.save(product);
+  create(createProductDto: CreateProductDto): Promise<ProductRecord> {
+    return this.productsRepository.create(createProductDto);
   }
 
-  async findAll(
+  findAll(
     paginationQuery: PaginationQueryDto,
-  ): Promise<PaginatedResponse<Product>> {
-    const { search, page = 1, limit = 20 } = paginationQuery;
-
-    const [data, totalItems] = await this.repo.findAndCount({
-      where: search ? [{ name: ILike(`%${search}%`) }] : undefined,
-      take: limit,
-      skip: (page - 1) * limit,
-    });
-
-    const meta: PaginationMeta = {
-      totalItems,
-      itemCount: data.length,
-      itemsPerPage: limit,
-      totalPages: Math.ceil(totalItems / limit),
-      currentPage: page,
-    };
-
-    return {
-      data: data,
-      meta: meta,
-    };
+  ): Promise<PaginatedResponse<ProductRecord>> {
+    return this.productsRepository.findAll(paginationQuery);
   }
 
-  async findOne(id: string): Promise<Product> {
-    const product = await this.repo.findOneBy({ id });
-    if (!product) throw new NotFoundException(`Product #${id} not found`);
+  async findOne(id: string): Promise<ProductRecord> {
+    const product = await this.productsRepository.findOne(id);
+    if (!product) {
+      throw new NotFoundException(`Product #${id} not found`);
+    }
+
     return product;
   }
 
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
-  ): Promise<Product> {
-    const product = await this.findOne(id);
-    Object.assign(product, updateProductDto);
-    return this.repo.save(product);
+  ): Promise<ProductRecord> {
+    const product = await this.productsRepository.update(id, updateProductDto);
+    if (!product) {
+      throw new NotFoundException(`Product #${id} not found`);
+    }
+
+    return product;
   }
 
-  async remove(id: string): Promise<Product> {
-    const product = await this.findOne(id);
-    return this.repo.remove(product);
+  async remove(id: string): Promise<ProductRecord> {
+    const product = await this.productsRepository.remove(id);
+    if (!product) {
+      throw new NotFoundException(`Product #${id} not found`);
+    }
+
+    return product;
   }
 }
