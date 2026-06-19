@@ -2,24 +2,23 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  OnModuleDestroy,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
 import { randomUUID } from 'crypto';
-import { Connection, Model, createConnection } from 'mongoose';
+import { Model } from 'mongoose';
 import {
   PaginatedResponse,
   PaginationMeta,
 } from '../../products/dto/paginated-response.dto';
 import {
   MongoProduct,
-  mongoProductSchema,
+  PRODUCT_MODEL,
 } from '../../products/entities/mongo-product.schema';
 import { CreateOrderDto, OrderItemInputDto } from '../dto/create-order.dto';
 import {
   MongoOrder,
   MongoOrderItem,
-  mongoOrderSchema,
+  ORDER_MODEL,
 } from '../entities/mongo-order.schema';
 import { OrderStatus } from '../entities/order.entity';
 import {
@@ -29,16 +28,13 @@ import {
 } from './orders.repository';
 
 @Injectable()
-export class MongoOrdersRepository
-  extends OrdersRepository
-  implements OnModuleDestroy
-{
-  private connection?: Connection;
-  private connectionPromise?: Promise<Connection>;
-  private orderModelPromise?: Promise<Model<MongoOrder>>;
-  private productModelPromise?: Promise<Model<MongoProduct>>;
-
-  constructor(private readonly config: ConfigService) {
+export class MongoOrdersRepository extends OrdersRepository {
+  constructor(
+    @InjectModel(ORDER_MODEL)
+    private readonly orderModel: Model<MongoOrder>,
+    @InjectModel(PRODUCT_MODEL)
+    private readonly productModel: Model<MongoProduct>,
+  ) {
     super();
   }
 
@@ -54,7 +50,7 @@ export class MongoOrdersRepository
         0,
       );
       const totalEth = parseFloat((totalUsd / ethUsdRate).toFixed(18));
-      const OrderModel = await this.getOrderModel();
+      const OrderModel = this.orderModel;
 
       const created = await OrderModel.create({
         _id: randomUUID(),
@@ -89,14 +85,14 @@ export class MongoOrdersRepository
   }
 
   async findOne(id: string): Promise<OrderRecord | null> {
-    const OrderModel = await this.getOrderModel();
+    const OrderModel = this.orderModel;
     const order = await OrderModel.findById(id).lean().exec();
 
     return order ? this.toOrderRecord(order) : null;
   }
 
   async save(order: OrderRecord): Promise<OrderRecord> {
-    const OrderModel = await this.getOrderModel();
+    const OrderModel = this.orderModel;
     const updated = await OrderModel.findByIdAndUpdate(
       order.id,
       {
@@ -138,7 +134,7 @@ export class MongoOrdersRepository
       return null;
     }
 
-    const OrderModel = await this.getOrderModel();
+    const OrderModel = this.orderModel;
     const updated = await OrderModel.findOneAndUpdate(
       {
         _id: orderId,
@@ -169,7 +165,7 @@ export class MongoOrdersRepository
   }
 
   async findStalePending(cutoff: Date): Promise<OrderRecord[]> {
-    const OrderModel = await this.getOrderModel();
+    const OrderModel = this.orderModel;
     const staleOrders = await OrderModel.find({
       status: OrderStatus.PENDING,
       createdAt: { $lt: cutoff },
@@ -186,7 +182,7 @@ export class MongoOrdersRepository
   }): Promise<PaginatedResponse<OrderRecord>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const OrderModel = await this.getOrderModel();
+    const OrderModel = this.orderModel;
 
     const [data, totalItems] = await Promise.all([
       OrderModel.find({})
@@ -212,14 +208,8 @@ export class MongoOrdersRepository
     };
   }
 
-  async onModuleDestroy(): Promise<void> {
-    if (this.connection) {
-      await this.connection.close();
-    }
-  }
-
   private async reserveStock(items: OrderItemInputDto[]) {
-    const ProductModel = await this.getProductModel();
+    const ProductModel = this.productModel;
     const reserved: Array<{
       productId: string;
       productName: string;
@@ -281,55 +271,13 @@ export class MongoOrdersRepository
       return;
     }
 
-    const ProductModel = await this.getProductModel();
+    const ProductModel = this.productModel;
 
     for (const item of items) {
       await ProductModel.findByIdAndUpdate(item.productId, {
         $inc: { quantity: item.quantity },
       }).exec();
     }
-  }
-
-  private async getConnection(): Promise<Connection> {
-    if (this.connection) {
-      return this.connection;
-    }
-
-    if (!this.connectionPromise) {
-      const uri = this.config.getOrThrow<string>('DATABASE_URL');
-      this.connectionPromise = createConnection(uri)
-        .asPromise()
-        .then((connection) => {
-          this.connection = connection;
-          return connection;
-        });
-    }
-
-    return this.connectionPromise;
-  }
-
-  private async getOrderModel(): Promise<Model<MongoOrder>> {
-    if (!this.orderModelPromise) {
-      this.orderModelPromise = this.getConnection().then((connection) =>
-        connection.models.Order
-          ? (connection.models.Order as Model<MongoOrder>)
-          : connection.model<MongoOrder>('Order', mongoOrderSchema),
-      );
-    }
-
-    return this.orderModelPromise;
-  }
-
-  private async getProductModel(): Promise<Model<MongoProduct>> {
-    if (!this.productModelPromise) {
-      this.productModelPromise = this.getConnection().then((connection) =>
-        connection.models.Product
-          ? (connection.models.Product as Model<MongoProduct>)
-          : connection.model<MongoProduct>('Product', mongoProductSchema),
-      );
-    }
-
-    return this.productModelPromise;
   }
 
   private toOrderRecord(order: MongoOrder): OrderRecord {

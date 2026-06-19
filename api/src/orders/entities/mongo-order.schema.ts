@@ -1,6 +1,8 @@
 import { Schema } from 'mongoose';
 import { OrderStatus } from './order.entity';
 
+export const ORDER_MODEL = 'Order';
+
 export interface MongoOrderItem {
   _id: string;
   productId: string;

@@ -1,5 +1,7 @@
 import { Schema } from 'mongoose';
 
+export const PRODUCT_MODEL = 'Product';
+
 export interface MongoProduct {
   _id: string;
   name: string;

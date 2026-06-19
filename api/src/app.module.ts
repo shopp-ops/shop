@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -30,7 +31,14 @@ const useStandardDatabase = isStandardDatabaseDriver();
             }),
           }),
         ]
-      : []),
+      : [
+          MongooseModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: (config: ConfigService) => ({
+              uri: config.getOrThrow<string>('DATABASE_URL'),
+            }),
+          }),
+        ]),
   ],
   controllers: [AppController],
   providers: [AppService],

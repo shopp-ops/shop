@@ -1,12 +1,7 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { randomUUID } from 'crypto';
-import {
-  Connection,
-  HydratedDocument,
-  Model,
-  createConnection,
-} from 'mongoose';
+import { HydratedDocument, Model } from 'mongoose';
 import { CreateProductDto } from '../dto/create-product.dto';
 import {
   PaginatedResponse,
@@ -16,7 +11,7 @@ import { PaginationQueryDto } from '../dto/pagination-query.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import {
   MongoProduct,
-  mongoProductSchema,
+  PRODUCT_MODEL,
 } from '../entities/mongo-product.schema';
 import { ProductRecord, ProductsRepository } from './products.repository';
 
@@ -24,21 +19,16 @@ const escapeRegExp = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 @Injectable()
-export class MongoProductsRepository
-  extends ProductsRepository
-  implements OnModuleDestroy
-{
-  private connection?: Connection;
-  private connectionPromise?: Promise<Connection>;
-  private modelPromise?: Promise<Model<MongoProduct>>;
-
-  constructor(private readonly config: ConfigService) {
+export class MongoProductsRepository extends ProductsRepository {
+  constructor(
+    @InjectModel(PRODUCT_MODEL)
+    private readonly productModel: Model<MongoProduct>,
+  ) {
     super();
   }
 
   async create(createProductDto: CreateProductDto): Promise<ProductRecord> {
-    const ProductModel = await this.getModel();
-    const created = await ProductModel.create({
+    const created = await this.productModel.create({
       _id: randomUUID(),
       name: createProductDto.name,
       quantity: createProductDto.quantity ?? 0,
@@ -51,7 +41,7 @@ export class MongoProductsRepository
   async findAll(
     paginationQuery: PaginationQueryDto,
   ): Promise<PaginatedResponse<ProductRecord>> {
-    const ProductModel = await this.getModel();
+    const ProductModel = this.productModel;
     const { search, page = 1, limit = 20 } = paginationQuery;
     const filter = search
       ? {
@@ -84,7 +74,7 @@ export class MongoProductsRepository
   }
 
   async findOne(id: string): Promise<ProductRecord | null> {
-    const ProductModel = await this.getModel();
+    const ProductModel = this.productModel;
     const product = await ProductModel.findById(id).lean().exec();
 
     return product ? this.toProductRecord(product) : null;
@@ -94,7 +84,7 @@ export class MongoProductsRepository
     id: string,
     updateProductDto: UpdateProductDto,
   ): Promise<ProductRecord | null> {
-    const ProductModel = await this.getModel();
+    const ProductModel = this.productModel;
     const updated = await ProductModel.findByIdAndUpdate(id, updateProductDto, {
       returnDocument: 'after',
       runValidators: true,
@@ -106,46 +96,10 @@ export class MongoProductsRepository
   }
 
   async remove(id: string): Promise<ProductRecord | null> {
-    const ProductModel = await this.getModel();
+    const ProductModel = this.productModel;
     const deleted = await ProductModel.findByIdAndDelete(id).lean().exec();
 
     return deleted ? this.toProductRecord(deleted) : null;
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    if (this.connection) {
-      await this.connection.close();
-    }
-  }
-
-  private async getConnection(): Promise<Connection> {
-    if (this.connection) {
-      return this.connection;
-    }
-
-    if (!this.connectionPromise) {
-      const uri = this.config.getOrThrow<string>('DATABASE_URL');
-      this.connectionPromise = createConnection(uri)
-        .asPromise()
-        .then((connection) => {
-          this.connection = connection;
-          return connection;
-        });
-    }
-
-    return this.connectionPromise;
-  }
-
-  private async getModel(): Promise<Model<MongoProduct>> {
-    if (!this.modelPromise) {
-      this.modelPromise = this.getConnection().then((connection) =>
-        connection.models.Product
-          ? (connection.models.Product as Model<MongoProduct>)
-          : connection.model<MongoProduct>('Product', mongoProductSchema),
-      );
-    }
-
-    return this.modelPromise;
   }
 
   private toProductRecord(
