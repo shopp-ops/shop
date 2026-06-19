@@ -38,7 +38,7 @@ const requireEnv = (key: string): string => {
         type: 'postgres',
         url: requireEnv('POSTGRES_URL'),
         autoLoadEntities: true,
-        synchronize: process.env.NODE_ENV !== 'production',
+        synchronize: true,
       }),
     }),
     TypeOrmModule.forFeature([Product, Order, OrderItem]),

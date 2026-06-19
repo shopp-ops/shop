@@ -27,7 +27,7 @@ const useStandardDatabase = isStandardDatabaseDriver();
               type: 'postgres' as const,
               url: config.getOrThrow<string>('DATABASE_URL'),
               autoLoadEntities: true,
-              synchronize: config.get('NODE_ENV') !== 'production',
+              synchronize: true,
             }),
           }),
         ]
