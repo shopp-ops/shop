@@ -29,6 +29,8 @@ describe('ProductsService', () => {
       findOne: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
+      insert: jest.fn(),
+      clear: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({

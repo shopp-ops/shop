@@ -53,6 +53,8 @@ describe('OrdersService', () => {
       restoreStockAndSetStatus: jest.fn(),
       findStalePending: jest.fn(),
       findAll: jest.fn(),
+      insert: jest.fn(),
+      clear: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
