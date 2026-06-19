@@ -50,9 +50,8 @@ export class MongoOrdersRepository extends OrdersRepository {
         0,
       );
       const totalEth = parseFloat((totalUsd / ethUsdRate).toFixed(18));
-      const OrderModel = this.orderModel;
 
-      const created = await OrderModel.create({
+      const created = await this.orderModel.create({
         _id: randomUUID(),
         status: OrderStatus.PENDING,
         customerName: dto.customerName,
@@ -85,36 +84,35 @@ export class MongoOrdersRepository extends OrdersRepository {
   }
 
   async findOne(id: string): Promise<OrderRecord | null> {
-    const OrderModel = this.orderModel;
-    const order = await OrderModel.findById(id).lean().exec();
+    const order = await this.orderModel.findById(id).lean().exec();
 
     return order ? this.toOrderRecord(order) : null;
   }
 
   async save(order: OrderRecord): Promise<OrderRecord> {
-    const OrderModel = this.orderModel;
-    const updated = await OrderModel.findByIdAndUpdate(
-      order.id,
-      {
-        status: order.status,
-        customerName: order.customerName,
-        shippingAddress: order.shippingAddress,
-        walletAddress: order.walletAddress,
-        totalAmount: Number(order.totalAmount),
-        txHash: order.txHash,
-        items: order.items.map((item) => ({
-          _id: item.id,
-          productId: item.productId,
-          productName: item.productName,
-          quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
-        })),
-      },
-      {
-        returnDocument: 'after',
-        runValidators: true,
-      },
-    )
+    const updated = await this.orderModel
+      .findByIdAndUpdate(
+        order.id,
+        {
+          status: order.status,
+          customerName: order.customerName,
+          shippingAddress: order.shippingAddress,
+          walletAddress: order.walletAddress,
+          totalAmount: Number(order.totalAmount),
+          txHash: order.txHash,
+          items: order.items.map((item) => ({
+            _id: item.id,
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+          })),
+        },
+        {
+          returnDocument: 'after',
+          runValidators: true,
+        },
+      )
       .lean()
       .exec();
 
@@ -134,19 +132,19 @@ export class MongoOrdersRepository extends OrdersRepository {
       return null;
     }
 
-    const OrderModel = this.orderModel;
-    const updated = await OrderModel.findOneAndUpdate(
-      {
-        _id: orderId,
-        status: OrderStatus.PENDING,
-      },
-      {
-        $set: { status },
-      },
-      {
-        returnDocument: 'after',
-      },
-    )
+    const updated = await this.orderModel
+      .findOneAndUpdate(
+        {
+          _id: orderId,
+          status: OrderStatus.PENDING,
+        },
+        {
+          $set: { status },
+        },
+        {
+          returnDocument: 'after',
+        },
+      )
       .lean()
       .exec();
 
@@ -165,11 +163,11 @@ export class MongoOrdersRepository extends OrdersRepository {
   }
 
   async findStalePending(cutoff: Date): Promise<OrderRecord[]> {
-    const OrderModel = this.orderModel;
-    const staleOrders = await OrderModel.find({
-      status: OrderStatus.PENDING,
-      createdAt: { $lt: cutoff },
-    })
+    const staleOrders = await this.orderModel
+      .find({
+        status: OrderStatus.PENDING,
+        createdAt: { $lt: cutoff },
+      })
       .lean()
       .exec();
 
@@ -182,16 +180,16 @@ export class MongoOrdersRepository extends OrdersRepository {
   }): Promise<PaginatedResponse<OrderRecord>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const OrderModel = this.orderModel;
 
     const [data, totalItems] = await Promise.all([
-      OrderModel.find({})
+      this.orderModel
+        .find({})
         .sort({ createdAt: -1, _id: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .lean()
         .exec(),
-      OrderModel.countDocuments({}).exec(),
+      this.orderModel.countDocuments({}).exec(),
     ]);
 
     const meta: PaginationMeta = {
@@ -209,7 +207,6 @@ export class MongoOrdersRepository extends OrdersRepository {
   }
 
   private async reserveStock(items: OrderItemInputDto[]) {
-    const ProductModel = this.productModel;
     const reserved: Array<{
       productId: string;
       productName: string;
@@ -218,18 +215,19 @@ export class MongoOrdersRepository extends OrdersRepository {
     }> = [];
 
     for (const item of items) {
-      const updatedProduct = await ProductModel.findOneAndUpdate(
-        {
-          _id: item.productId,
-          quantity: { $gte: item.quantity },
-        },
-        {
-          $inc: { quantity: -item.quantity },
-        },
-        {
-          returnDocument: 'before',
-        },
-      )
+      const updatedProduct = await this.productModel
+        .findOneAndUpdate(
+          {
+            _id: item.productId,
+            quantity: { $gte: item.quantity },
+          },
+          {
+            $inc: { quantity: -item.quantity },
+          },
+          {
+            returnDocument: 'before',
+          },
+        )
         .lean()
         .exec();
 
@@ -241,7 +239,8 @@ export class MongoOrdersRepository extends OrdersRepository {
           })),
         );
 
-        const existingProduct = await ProductModel.findById(item.productId)
+        const existingProduct = await this.productModel
+          .findById(item.productId)
           .lean()
           .exec();
         if (!existingProduct) {
@@ -271,12 +270,12 @@ export class MongoOrdersRepository extends OrdersRepository {
       return;
     }
 
-    const ProductModel = this.productModel;
-
     for (const item of items) {
-      await ProductModel.findByIdAndUpdate(item.productId, {
-        $inc: { quantity: item.quantity },
-      }).exec();
+      await this.productModel
+        .findByIdAndUpdate(item.productId, {
+          $inc: { quantity: item.quantity },
+        })
+        .exec();
     }
   }
 

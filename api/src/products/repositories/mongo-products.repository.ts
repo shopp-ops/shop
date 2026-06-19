@@ -38,7 +38,6 @@ export class MongoProductsRepository extends ProductsRepository {
   async findAll(
     paginationQuery: PaginationQueryDto,
   ): Promise<PaginatedResponse<ProductRecord>> {
-    const ProductModel = this.productModel;
     const { search, page = 1, limit = 20 } = paginationQuery;
     const filter = search
       ? {
@@ -47,13 +46,14 @@ export class MongoProductsRepository extends ProductsRepository {
       : {};
 
     const [data, totalItems] = await Promise.all([
-      ProductModel.find(filter)
+      this.productModel
+        .find(filter)
         .sort({ _id: 1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .lean()
         .exec(),
-      ProductModel.countDocuments(filter).exec(),
+      this.productModel.countDocuments(filter).exec(),
     ]);
 
     const meta: PaginationMeta = {
@@ -71,8 +71,7 @@ export class MongoProductsRepository extends ProductsRepository {
   }
 
   async findOne(id: string): Promise<ProductRecord | null> {
-    const ProductModel = this.productModel;
-    const product = await ProductModel.findById(id).lean().exec();
+    const product = await this.productModel.findById(id).lean().exec();
 
     return product ? this.toProductRecord(product) : null;
   }
@@ -81,11 +80,11 @@ export class MongoProductsRepository extends ProductsRepository {
     id: string,
     updateProductDto: UpdateProductDto,
   ): Promise<ProductRecord | null> {
-    const ProductModel = this.productModel;
-    const updated = await ProductModel.findByIdAndUpdate(id, updateProductDto, {
-      returnDocument: 'after',
-      runValidators: true,
-    })
+    const updated = await this.productModel
+      .findByIdAndUpdate(id, updateProductDto, {
+        returnDocument: 'after',
+        runValidators: true,
+      })
       .lean()
       .exec();
 
@@ -93,8 +92,7 @@ export class MongoProductsRepository extends ProductsRepository {
   }
 
   async remove(id: string): Promise<ProductRecord | null> {
-    const ProductModel = this.productModel;
-    const deleted = await ProductModel.findByIdAndDelete(id).lean().exec();
+    const deleted = await this.productModel.findByIdAndDelete(id).lean().exec();
 
     return deleted ? this.toProductRecord(deleted) : null;
   }
