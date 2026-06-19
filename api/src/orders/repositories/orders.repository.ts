@@ -49,4 +49,6 @@ export abstract class OrdersRepository {
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<OrderRecord>>;
+  abstract insert(record: OrderRecord): Promise<void>;
+  abstract clear(): Promise<void>;
 }

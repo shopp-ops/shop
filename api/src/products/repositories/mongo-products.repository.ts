@@ -9,10 +9,7 @@ import {
 } from '../dto/paginated-response.dto';
 import { PaginationQueryDto } from '../dto/pagination-query.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
-import {
-  MongoProduct,
-  PRODUCT_MODEL,
-} from '../entities/mongo-product.schema';
+import { MongoProduct, PRODUCT_MODEL } from '../entities/mongo-product.schema';
 import { ProductRecord, ProductsRepository } from './products.repository';
 
 const escapeRegExp = (value: string) =>
@@ -100,6 +97,19 @@ export class MongoProductsRepository extends ProductsRepository {
     const deleted = await ProductModel.findByIdAndDelete(id).lean().exec();
 
     return deleted ? this.toProductRecord(deleted) : null;
+  }
+
+  async insert(record: ProductRecord): Promise<void> {
+    await this.productModel.create({
+      _id: record.id,
+      name: record.name,
+      quantity: record.quantity,
+      price: Number(record.price),
+    });
+  }
+
+  async clear(): Promise<void> {
+    await this.productModel.deleteMany({}).exec();
   }
 
   private toProductRecord(

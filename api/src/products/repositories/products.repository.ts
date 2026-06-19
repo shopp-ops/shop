@@ -21,4 +21,6 @@ export abstract class ProductsRepository {
     updateProductDto: UpdateProductDto,
   ): Promise<ProductRecord | null>;
   abstract remove(id: string): Promise<ProductRecord | null>;
+  abstract insert(record: ProductRecord): Promise<void>;
+  abstract clear(): Promise<void>;
 }

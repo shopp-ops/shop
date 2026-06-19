@@ -161,6 +161,14 @@ export class PostgresOrdersRepository extends OrdersRepository {
     };
   }
 
+  async insert(record: OrderRecord): Promise<void> {
+    await this.orderRepo.save(this.toOrderEntity(record));
+  }
+
+  async clear(): Promise<void> {
+    await this.orderRepo.delete({});
+  }
+
   private toOrderRecord(order: Order): OrderRecord {
     return {
       id: order.id,

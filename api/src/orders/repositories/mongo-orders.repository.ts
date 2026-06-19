@@ -280,6 +280,38 @@ export class MongoOrdersRepository extends OrdersRepository {
     }
   }
 
+  async insert(record: OrderRecord): Promise<void> {
+    // timestamps: false preserves the source createdAt/updatedAt instead of
+    // letting the schema's `timestamps: true` overwrite them with now().
+    await this.orderModel.create(
+      [
+        {
+          _id: record.id,
+          status: record.status,
+          customerName: record.customerName,
+          shippingAddress: record.shippingAddress,
+          walletAddress: record.walletAddress,
+          totalAmount: Number(record.totalAmount),
+          txHash: record.txHash,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+          items: record.items.map((item) => ({
+            _id: item.id,
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+          })),
+        },
+      ],
+      { timestamps: false },
+    );
+  }
+
+  async clear(): Promise<void> {
+    await this.orderModel.deleteMany({}).exec();
+  }
+
   private toOrderRecord(order: MongoOrder): OrderRecord {
     return {
       id: order._id,

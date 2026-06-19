@@ -79,4 +79,17 @@ export class PostgresProductsRepository extends ProductsRepository {
 
     return this.repo.remove(product);
   }
+
+  async insert(record: ProductRecord): Promise<void> {
+    await this.repo.save({
+      id: record.id,
+      name: record.name,
+      quantity: record.quantity,
+      price: Number(record.price),
+    });
+  }
+
+  async clear(): Promise<void> {
+    await this.repo.delete({});
+  }
 }
