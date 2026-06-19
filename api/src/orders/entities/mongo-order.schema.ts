@@ -1,80 +1,90 @@
-import { Schema } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 import { OrderStatus } from './order.entity';
 
 export const ORDER_MODEL = 'Order';
 
-export interface MongoOrderItem {
+@Schema({ _id: false, id: false, versionKey: false })
+export class MongoOrderItem {
+  @Prop({ type: String, required: true })
   _id: string;
+
+  @Prop({ required: true })
   productId: string;
+
+  @Prop({ required: true })
   productName: string;
+
+  @Prop({ required: true, min: 1 })
   quantity: number;
+
+  @Prop({ required: true, min: 0 })
   unitPrice: number;
 }
 
-export interface MongoOrder {
+export const mongoOrderItemSchema =
+  SchemaFactory.createForClass(MongoOrderItem);
+
+@Schema({ _id: false, versionKey: false })
+export class ShippingAddress {
+  @Prop({ required: true })
+  street: string;
+
+  @Prop({ required: true })
+  city: string;
+
+  @Prop({ required: true })
+  country: string;
+
+  @Prop({ required: true })
+  zip: string;
+}
+
+export const shippingAddressSchema =
+  SchemaFactory.createForClass(ShippingAddress);
+
+@Schema({ versionKey: false, collection: 'orders', timestamps: true })
+export class MongoOrder {
+  @Prop({ type: String, required: true })
   _id: string;
+
+  @Prop({
+    type: String,
+    enum: Object.values(OrderStatus),
+    required: true,
+    default: OrderStatus.PENDING,
+  })
   status: OrderStatus;
+
+  @Prop({ required: true })
   customerName: string;
-  shippingAddress: {
-    street: string;
-    city: string;
-    country: string;
-    zip: string;
-  };
+
+  @Prop({ type: shippingAddressSchema, required: true })
+  shippingAddress: ShippingAddress;
+
+  @Prop({ required: true })
   walletAddress: string;
+
+  @Prop({ type: Number, required: true, min: 0 })
   totalAmount: number;
+
+  @Prop({ type: String, default: null })
   txHash: string | null;
+
+  @Prop({
+    type: [mongoOrderItemSchema],
+    required: true,
+    validate: {
+      validator: (items: MongoOrderItem[]) => items.length > 0,
+      message: 'Order must contain at least one item',
+    },
+  })
   items: MongoOrderItem[];
+
   createdAt: Date;
+
   updatedAt: Date;
 }
 
-export const mongoOrderItemSchema = new Schema<MongoOrderItem>(
-  {
-    _id: { type: String, required: true },
-    productId: { type: String, required: true },
-    productName: { type: String, required: true },
-    quantity: { type: Number, required: true, min: 1 },
-    unitPrice: { type: Number, required: true, min: 0 },
-  },
-  {
-    _id: false,
-    id: false,
-    versionKey: false,
-  },
-);
-
-export const mongoOrderSchema = new Schema<MongoOrder>(
-  {
-    _id: { type: String, required: true },
-    status: {
-      type: String,
-      enum: Object.values(OrderStatus),
-      required: true,
-      default: OrderStatus.PENDING,
-    },
-    customerName: { type: String, required: true },
-    shippingAddress: {
-      street: { type: String, required: true },
-      city: { type: String, required: true },
-      country: { type: String, required: true },
-      zip: { type: String, required: true },
-    },
-    walletAddress: { type: String, required: true },
-    totalAmount: { type: Number, required: true, min: 0 },
-    txHash: { type: String, default: null },
-    items: {
-      type: [mongoOrderItemSchema],
-      required: true,
-      validate: {
-        validator: (items: MongoOrderItem[]) => items.length > 0,
-        message: 'Order must contain at least one item',
-      },
-    },
-  },
-  {
-    versionKey: false,
-    collection: 'orders',
-    timestamps: true,
-  },
-);
+export type MongoOrderDocument = HydratedDocument<MongoOrder>;
+export const mongoOrderSchema = SchemaFactory.createForClass(MongoOrder);

@@ -1,39 +1,22 @@
-import { Schema } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 
 export const PRODUCT_MODEL = 'Product';
 
-export interface MongoProduct {
+@Schema({ versionKey: false, collection: 'products' })
+export class MongoProduct {
+  @Prop({ type: String, required: true })
   _id: string;
+
+  @Prop({ required: true, trim: true })
   name: string;
+
+  @Prop({ required: true, min: 0, default: 0 })
   quantity: number;
+
+  @Prop({ required: true, min: 0.01 })
   price: number;
 }
 
-export const mongoProductSchema = new Schema<MongoProduct>(
-  {
-    _id: {
-      type: String,
-      required: true,
-    },
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 0,
-      default: 0,
-    },
-    price: {
-      type: Number,
-      required: true,
-      min: 0.01,
-    },
-  },
-  {
-    versionKey: false,
-    collection: 'products',
-  },
-);
+export type MongoProductDocument = HydratedDocument<MongoProduct>;
+export const mongoProductSchema = SchemaFactory.createForClass(MongoProduct);
