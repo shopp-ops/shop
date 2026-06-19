@@ -33,14 +33,18 @@ const requireEnv = (key: string): string => {
  */
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      url: requireEnv('POSTGRES_URL'),
-      autoLoadEntities: true,
-      synchronize: process.env.NODE_ENV !== 'production',
+    TypeOrmModule.forRootAsync({
+      useFactory: () => ({
+        type: 'postgres',
+        url: requireEnv('POSTGRES_URL'),
+        autoLoadEntities: true,
+        synchronize: process.env.NODE_ENV !== 'production',
+      }),
     }),
     TypeOrmModule.forFeature([Product, Order, OrderItem]),
-    MongooseModule.forRoot(requireEnv('MONGO_URL')),
+    MongooseModule.forRootAsync({
+      useFactory: () => ({ uri: requireEnv('MONGO_URL') }),
+    }),
     MongooseModule.forFeature([
       { name: ORDER_MODEL, schema: mongoOrderSchema },
       { name: PRODUCT_MODEL, schema: mongoProductSchema },
