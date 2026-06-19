@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 export type DatabaseDriver = 'standard' | 'light';
 
 export const getDatabaseDriver = (
