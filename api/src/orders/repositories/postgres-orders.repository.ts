@@ -166,7 +166,9 @@ export class PostgresOrdersRepository extends OrdersRepository {
   }
 
   async clear(): Promise<void> {
-    await this.orderRepo.delete({});
+    // QueryBuilder delete avoids TypeORM's empty-criteria guard on delete({}).
+    // OrderItem rows cascade via the FK's onDelete: 'CASCADE'.
+    await this.orderRepo.createQueryBuilder().delete().execute();
   }
 
   private toOrderRecord(order: Order): OrderRecord {

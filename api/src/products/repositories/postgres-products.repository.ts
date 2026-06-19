@@ -90,6 +90,6 @@ export class PostgresProductsRepository extends ProductsRepository {
   }
 
   async clear(): Promise<void> {
-    await this.repo.delete({});
+    await this.repo.createQueryBuilder().delete().execute();
   }
 }
