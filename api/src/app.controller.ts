@@ -19,6 +19,7 @@ export class AppController {
     return {
       shopWalletAddress:
         this.configService.getOrThrow<string>('WALLET_ADDRESS'),
+      shopName: this.configService.getOrThrow<string>('SHOP_NAME') ?? 'SHOP',
     };
   }
 }

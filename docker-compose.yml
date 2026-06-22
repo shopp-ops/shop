@@ -10,5 +10,16 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
 
+  mongo:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: shop
+      MONGO_INITDB_ROOT_PASSWORD: changeme
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
 volumes:
   db-data:
+  mongo-data:
