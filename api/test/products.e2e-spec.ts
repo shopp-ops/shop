@@ -46,6 +46,14 @@ describe('Products (e2e)', () => {
         password: 'admin-password',
       });
     authToken = loginRes.body.accessToken;
+
+    // Bootstrapped admin starts with mustChangePassword=true; clear it so the
+    // token can pass the PasswordChangeRequiredGuard on protected routes.
+    await request(app.getHttpServer())
+      .patch('/auth/password')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ currentPassword: 'admin-password', newPassword: 'changed-password' })
+      .expect(204);
   }, 60_000);
 
   afterAll(async () => {
