@@ -13,7 +13,6 @@ import { AuthService } from './auth.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { PasswordChangeRequiredGuard } from './guards/password-change-required.guard';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
 
 @Controller('auth')
@@ -26,8 +25,11 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  // Identity endpoint: reachable even while a password change is required, so
+  // the client can read mustChangePassword and route to the change-password
+  // screen. Admin business routes stay blocked by PasswordChangeRequiredGuard.
   @Get('me')
-  @UseGuards(JwtAuthGuard, PasswordChangeRequiredGuard)
+  @UseGuards(JwtAuthGuard)
   me(@Request() req: { user: AuthenticatedUser }) {
     return req.user;
   }

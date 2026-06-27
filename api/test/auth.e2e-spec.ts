@@ -88,9 +88,18 @@ describe('Auth (e2e)', () => {
       accessToken = res.body.accessToken;
     });
 
-    it('blocks protected routes with 403 while a password change is required', () =>
+    it('keeps /auth/me reachable and reports mustChangePassword', () =>
       request(app.getHttpServer())
         .get('/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toMatchObject({ mustChangePassword: true });
+        }));
+
+    it('blocks admin business routes with 403 while a password change is required', () =>
+      request(app.getHttpServer())
+        .get('/api/orders')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(403));
 
