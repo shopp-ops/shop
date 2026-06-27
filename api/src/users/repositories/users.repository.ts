@@ -22,4 +22,7 @@ export abstract class UsersRepository {
     id: string,
     passwordHash: string,
   ): Promise<UserRecord | null>;
+  abstract findAll(): Promise<UserRecord[]>;
+  abstract insert(record: UserRecord): Promise<void>;
+  abstract clear(): Promise<void>;
 }

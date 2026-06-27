@@ -53,4 +53,22 @@ export class PostgresUsersRepository extends UsersRepository {
     user.mustChangePassword = false;
     return this.repo.save(user);
   }
+
+  findAll(): Promise<UserRecord[]> {
+    return this.repo.find();
+  }
+
+  async insert(record: UserRecord): Promise<void> {
+    await this.repo.save({
+      id: record.id,
+      email: record.email,
+      passwordHash: record.passwordHash,
+      mustChangePassword: record.mustChangePassword,
+      role: record.role,
+    });
+  }
+
+  async clear(): Promise<void> {
+    await this.repo.createQueryBuilder().delete().execute();
+  }
 }

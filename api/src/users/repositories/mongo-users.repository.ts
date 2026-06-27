@@ -60,6 +60,25 @@ export class MongoUsersRepository extends UsersRepository {
     return updated ? this.toUserRecord(updated) : null;
   }
 
+  async findAll(): Promise<UserRecord[]> {
+    const users = await this.userModel.find().lean().exec();
+    return users.map((user) => this.toUserRecord(user));
+  }
+
+  async insert(record: UserRecord): Promise<void> {
+    await this.userModel.create({
+      _id: record.id,
+      email: record.email,
+      passwordHash: record.passwordHash,
+      mustChangePassword: record.mustChangePassword,
+      role: record.role,
+    });
+  }
+
+  async clear(): Promise<void> {
+    await this.userModel.deleteMany({}).exec();
+  }
+
   private toUserRecord(
     user:
       | HydratedDocument<MongoUser>
