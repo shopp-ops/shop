@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { isStandardDatabaseDriver } from './database/database-driver';
 import { OrdersModule } from './orders/orders.module';
 import { ProductsModule } from './products/products.module';
+import { UsersModule } from './users/users.module';
 
 const useStandardDatabase = isStandardDatabaseDriver();
 
@@ -19,6 +20,7 @@ const useStandardDatabase = isStandardDatabaseDriver();
     AuthModule,
     ProductsModule,
     OrdersModule,
+    UsersModule,
     ...(useStandardDatabase
       ? [
           TypeOrmModule.forRootAsync({
