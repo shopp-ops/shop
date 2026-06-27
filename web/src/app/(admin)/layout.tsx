@@ -6,14 +6,19 @@ import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { token, loading } = useAuth();
+  const { token, user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !token) router.replace("/login");
-  }, [token, loading, router]);
+    if (loading) return;
+    if (!token) {
+      router.replace("/login");
+    } else if (user?.mustChangePassword) {
+      router.replace("/change-password");
+    }
+  }, [token, user, loading, router]);
 
-  if (loading || !token) return null;
+  if (loading || !token || user?.mustChangePassword) return null;
 
   return (
     <div className="flex min-h-screen flex-col">

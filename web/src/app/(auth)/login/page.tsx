@@ -28,11 +28,13 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, token, loading } = useAuth();
+  const { login, token, user, loading } = useAuth();
 
   useEffect(() => {
-    if (!loading && token) router.replace("/admin");
-  }, [token, loading, router]);
+    if (!loading && token) {
+      router.replace(user?.mustChangePassword ? "/change-password" : "/admin");
+    }
+  }, [token, user, loading, router]);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const { control, handleSubmit, formState: { isSubmitting } } = useForm<FormData>({
@@ -44,8 +46,8 @@ export default function LoginPage() {
     setServerError(null);
     try {
       const { accessToken } = await authApi.login(data.email, data.password);
-      await login(accessToken);
-      router.push("/admin");
+      const me = await login(accessToken);
+      router.push(me.mustChangePassword ? "/change-password" : "/admin");
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Login failed");
     }

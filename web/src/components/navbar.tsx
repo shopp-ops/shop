@@ -33,7 +33,7 @@ export function Navbar() {
     router.push("/login");
   }
 
-  if (loading || pathname === "/login") {
+  if (loading || pathname === "/login" || pathname === "/change-password") {
     return null;
   }
 
