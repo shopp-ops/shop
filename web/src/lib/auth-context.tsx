@@ -7,7 +7,8 @@ type AuthState = {
   token: string | null;
   user: MeResponse | null;
   loading: boolean;
-  login: (token: string) => Promise<void>;
+  login: (token: string) => Promise<MeResponse>;
+  refresh: () => Promise<void>;
   logout: () => void;
 };
 
@@ -38,6 +39,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("token", newToken);
     setToken(newToken);
     setUser(u);
+    return u;
+  }
+
+  async function refresh() {
+    const stored = localStorage.getItem("token");
+    if (!stored) return;
+    const u = await authApi.me(stored);
+    setUser(u);
   }
 
   function logout() {
@@ -47,7 +56,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{ token, user, loading, login, refresh, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
