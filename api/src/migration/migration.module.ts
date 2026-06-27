@@ -16,6 +16,13 @@ import {
 import { Product } from '../products/entities/product.entity';
 import { MongoProductsRepository } from '../products/repositories/mongo-products.repository';
 import { PostgresProductsRepository } from '../products/repositories/postgres-products.repository';
+import {
+  USER_MODEL,
+  mongoUserSchema,
+} from '../users/entities/mongo-user.schema';
+import { User } from '../users/entities/user.entity';
+import { MongoUsersRepository } from '../users/repositories/mongo-users.repository';
+import { PostgresUsersRepository } from '../users/repositories/postgres-users.repository';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -41,13 +48,14 @@ const requireEnv = (key: string): string => {
         synchronize: true,
       }),
     }),
-    TypeOrmModule.forFeature([Product, Order, OrderItem]),
+    TypeOrmModule.forFeature([Product, Order, OrderItem, User]),
     MongooseModule.forRootAsync({
       useFactory: () => ({ uri: requireEnv('MONGO_URL') }),
     }),
     MongooseModule.forFeature([
       { name: ORDER_MODEL, schema: mongoOrderSchema },
       { name: PRODUCT_MODEL, schema: mongoProductSchema },
+      { name: USER_MODEL, schema: mongoUserSchema },
     ]),
   ],
   providers: [
@@ -55,6 +63,8 @@ const requireEnv = (key: string): string => {
     MongoProductsRepository,
     PostgresOrdersRepository,
     MongoOrdersRepository,
+    PostgresUsersRepository,
+    MongoUsersRepository,
   ],
 })
 export class MigrationModule {}

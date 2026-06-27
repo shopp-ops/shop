@@ -72,8 +72,14 @@ describe('Auth (e2e)', () => {
         .expect(400));
   });
 
-  describe('GET /auth/me', () => {
+  it('GET /auth/me returns 401 without a token', () =>
+    request(app.getHttpServer()).get('/auth/me').expect(401));
+
+  // Runs last: the bootstrapped admin starts with mustChangePassword=true and
+  // this flow mutates the shared password, so ordering matters.
+  describe('first-login password change flow', () => {
     let accessToken: string;
+    const newPassword = 'new-admin-password';
 
     beforeAll(async () => {
       const res = await request(app.getHttpServer())
@@ -82,16 +88,58 @@ describe('Auth (e2e)', () => {
       accessToken = res.body.accessToken;
     });
 
-    it('returns 401 without token', () =>
-      request(app.getHttpServer()).get('/auth/me').expect(401));
-
-    it('returns 200 with userId and role for valid token', () =>
+    it('keeps /auth/me reachable and reports mustChangePassword', () =>
       request(app.getHttpServer())
         .get('/auth/me')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toMatchObject({ userId: 'admin', role: 'admin' });
+          expect(res.body).toMatchObject({ mustChangePassword: true });
         }));
+
+    it('blocks admin business routes with 403 while a password change is required', () =>
+      request(app.getHttpServer())
+        .get('/api/orders')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(403));
+
+    it('rejects a password change with the wrong current password (401)', () =>
+      request(app.getHttpServer())
+        .patch('/auth/password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: 'wrong', newPassword })
+        .expect(401));
+
+    it('changes the password (204)', () =>
+      request(app.getHttpServer())
+        .patch('/auth/password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: 'admin-password', newPassword })
+        .expect(204));
+
+    it('rejects the old password after the change (401)', () =>
+      request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: 'admin@shop.com', password: 'admin-password' })
+        .expect(401));
+
+    it('logs in with the new password and can access protected routes', async () => {
+      const login = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: 'admin@shop.com', password: newPassword })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${login.body.accessToken}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toMatchObject({
+            userId: expect.any(String),
+            role: 'admin',
+            mustChangePassword: false,
+          });
+        });
+    });
   });
 });

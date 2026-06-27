@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PasswordChangeRequiredGuard } from '../auth/guards/password-change-required.guard';
 import { PaginationQueryDto } from '../products/dto/pagination-query.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
@@ -37,7 +38,7 @@ export class OrdersController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PasswordChangeRequiredGuard)
   findAll(@Query() query: PaginationQueryDto) {
     return this.ordersService.findAll(query);
   }
