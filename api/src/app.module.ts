@@ -21,7 +21,8 @@ const useStandardDatabase = isStandardDatabaseDriver();
     ScheduleModule.forRoot(),
     LoggerModule.forRoot({
       pinoHttp: {
-        level: 'info',
+        level: process.env.LOG_LEVEL ?? 'info',
+        redact: ['req.headers.authorization'],
         base: {
           shop: process.env.SHOP_NAME ?? 'unknown',
         },

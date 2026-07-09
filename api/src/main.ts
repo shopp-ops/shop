@@ -5,6 +5,7 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { httpRequestDuration, httpRequestsTotal } from './metrics/http.metrics';
 
@@ -19,6 +20,9 @@ async function bootstrap() {
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:3001',
     methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   });
+  // Without this, `new Logger()` calls (used throughout the app) go through Nest's
+  // default ConsoleLogger instead of pino — plain text, not shipped to Loki as JSON.
+  app.useLogger(app.get(Logger));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   // Record HTTP metrics at the Fastify onResponse hook — fires after the response is

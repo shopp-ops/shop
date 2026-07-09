@@ -49,13 +49,18 @@ export class OrdersService {
   });
 
   private async getEthUsdRate(): Promise<number> {
-    const result = await this.viemClient.readContract({
-      address: CHAINLINK_ETH_USD_SEPOLIA,
-      abi: chainlinkAggregatorAbi,
-      functionName: 'latestRoundData',
-    });
+    try {
+      const result = await this.viemClient.readContract({
+        address: CHAINLINK_ETH_USD_SEPOLIA,
+        abi: chainlinkAggregatorAbi,
+        functionName: 'latestRoundData',
+      });
 
-    return Number(result[1]) / 1e8;
+      return Number(result[1]) / 1e8;
+    } catch (error) {
+      this.logger.error(`Chainlink ETH/USD price feed read failed: ${(error as Error).message}`);
+      throw error;
+    }
   }
 
   constructor(
@@ -72,6 +77,7 @@ export class OrdersService {
     const ethUsdRate = await this.getEthUsdRate();
     const result = await this.ordersRepository.create(dto, ethUsdRate);
 
+    this.logger.log(`Order ${result.orderId} created (${result.totalAmount} ETH)`);
     return {
       ...result,
       shopWalletAddress,
@@ -109,11 +115,26 @@ export class OrdersService {
     if (!recipientOk || !valueOk || !statusOk) {
       order.status = OrderStatus.FAILED;
       await this.ordersRepository.save(order);
+      this.logger.warn({
+        msg: 'payment verification failed',
+        orderId,
+        txHash,
+        recipientOk,
+        valueOk,
+        statusOk,
+        expectedRecipient: shopWalletAddress,
+        actualRecipient: tx.to,
+        expectedWei: expectedWei.toString(),
+        actualWei: tx.value.toString(),
+        receiptStatus: receipt.status,
+      });
       throw new UnprocessableEntityException('Transaction verification failed');
     }
 
     order.status = OrderStatus.CONFIRMED;
-    return this.ordersRepository.save(order);
+    const saved = await this.ordersRepository.save(order);
+    this.logger.log(`Payment verified for order ${orderId} (tx ${txHash})`);
+    return saved;
   }
 
   async cancel(orderId: string): Promise<OrderRecord> {
@@ -134,6 +155,7 @@ export class OrdersService {
       throw new NotFoundException(`Order #${orderId} not found`);
     }
 
+    this.logger.log(`Order ${orderId} cancelled`);
     return updated;
   }
 
