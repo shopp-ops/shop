@@ -7,7 +7,7 @@ import {
 import { ValidationPipe } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
-import { httpRequestDuration, httpRequestsTotal } from './metrics/http.metrics';
+import { httpRequestDuration, httpRequestsTotal, httpResponseSize } from './metrics/http.metrics';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -35,6 +35,7 @@ async function bootstrap() {
       const status = reply.statusCode.toString();
       httpRequestDuration.labels(req.method, route, status).observe(reply.elapsedTime / 1000);
       httpRequestsTotal.labels(req.method, route, status).inc();
+      httpResponseSize.labels(route).inc(Number(reply.getHeader('content-length') ?? 0));
     }
     done();
   });
