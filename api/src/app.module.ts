@@ -12,6 +12,10 @@ import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { LoggerModule } from 'nestjs-pino';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
+import { MiddlewareConsumer } from '@nestjs/common';
+import { MetricsMiddleware } from './metrics/http.middleware';
+import { MetricsInterceptor } from './metrics/metrics.interceptor';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 const useStandardDatabase = isStandardDatabaseDriver();
 
@@ -66,6 +70,11 @@ const useStandardDatabase = isStandardDatabaseDriver();
         ]),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, 
+              {
+                provide: APP_INTERCEPTOR,
+                useClass: MetricsInterceptor,
+              }
+  ],
 })
 export class AppModule {}
