@@ -10,6 +10,7 @@ import { isStandardDatabaseDriver } from './database/database-driver';
 import { OrdersModule } from './orders/orders.module';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
+import { LoggerModule } from 'nestjs-pino';
 
 const useStandardDatabase = isStandardDatabaseDriver();
 
@@ -17,6 +18,24 @@ const useStandardDatabase = isStandardDatabaseDriver();
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: 'info',
+        base: {
+          shop: process.env.SHOP_NAME ?? 'unknown',
+        },
+        serializers: {
+          req(req) {
+            return {
+              method: req.method,
+              url: req.url,
+              userAgent: req.headers['user-agent'],
+              ip: req.headers['x-forwarded-for'] ?? req.ip,
+            };
+          },
+        },
+      },
+    }),
     AuthModule,
     ProductsModule,
     OrdersModule,
