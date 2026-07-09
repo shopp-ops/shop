@@ -6,6 +6,7 @@ import {
 } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { httpRequestDuration, httpRequestsTotal } from './metrics/http.metrics';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -19,6 +20,21 @@ async function bootstrap() {
     methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  // Record HTTP metrics at the Fastify onResponse hook — fires after the response is
+  // fully sent, capturing the whole server lifecycle (guards, pipes, serialization,
+  // send), unlike a Nest interceptor which only wraps the controller handler.
+  const fastify = app.getHttpAdapter().getInstance();
+  fastify.addHook('onResponse', (req, reply, done) => {
+    const route: string = req.routeOptions?.url ?? 'unmatched';
+    if (!route.startsWith('/metrics')) {
+      const status = reply.statusCode.toString();
+      httpRequestDuration.labels(req.method, route, status).observe(reply.elapsedTime / 1000);
+      httpRequestsTotal.labels(req.method, route, status).inc();
+    }
+    done();
+  });
+
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 void bootstrap();
