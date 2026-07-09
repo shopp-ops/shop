@@ -11,6 +11,7 @@ import { OrdersModule } from './orders/orders.module';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { LoggerModule } from 'nestjs-pino';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 
 const useStandardDatabase = isStandardDatabaseDriver();
 
@@ -35,6 +36,9 @@ const useStandardDatabase = isStandardDatabaseDriver();
           },
         },
       },
+    }),
+    PrometheusModule.register({
+      path:'/metrics'
     }),
     AuthModule,
     ProductsModule,
