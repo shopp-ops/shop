@@ -38,6 +38,10 @@ export class MetricsInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
 
+    if (request.url === '/metrics') {
+      return next.handle();
+    }
+
     //const route = context.getHandler().name;
 
     return next.handle().pipe(
