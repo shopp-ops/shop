@@ -1,4 +1,10 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+  HttpException,
+} from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { httpRequestDuration, httpRequestsTotal } from './http.metrics';
 import { Reflector } from '@nestjs/core';
@@ -33,34 +39,56 @@ export class MetricsInterceptor implements NestInterceptor {
         handler,
       ) ?? '';
 
-    const route = `/${controllerPath}/${handlerPath}`.replace(/\/+/g, '/');
+    const route =
+      `/${controllerPath}/${handlerPath}`
+      .replace(/\/+/g, '/');
 
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
 
-    if (request.url === '/metrics') {
+    if (request.url.startsWith('/metrics')) {
       return next.handle();
     }
 
-    //const route = context.getHandler().name;
+    const recordMetric = (status: number) => {
+
+      httpRequestDuration
+        .labels(
+          request.method,
+          route,
+          status.toString(),
+        )
+        .observe(
+          (Date.now() - start) / 1000
+        );
+
+      httpRequestsTotal
+        .labels(
+          request.method,
+          route,
+          status.toString(),
+        )
+        .inc();
+    };
+
 
     return next.handle().pipe(
-      tap(() => {
-        const status = response.statusCode.toString();
-        httpRequestDuration
-          .labels(
-            request.method,
-            route,
-            status,
-          )
-          .observe((Date.now() - start) / 1000);
-        httpRequestsTotal
-          .labels(
-            request.method,
-            route,
-            status,
-          )
-          .inc();
+      tap({
+        next: () => {
+          // 2xx, 3xx
+          recordMetric(response.statusCode);
+        },
+
+        error: (error) => {
+
+          let status = 500;
+
+          if (error instanceof HttpException) {
+            status = error.getStatus();
+          }
+
+          recordMetric(status);
+        },
       }),
     );
   }
