@@ -1,8 +1,16 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+
+// OTEL_EXPORTER_OTLP_ENDPOINT (injected by the operator) is the bare
+// collector origin, e.g. "http://alloy.observability.svc:4318" — the OTLP
+// HTTP spec requires the signal-specific path appended (/v1/traces), which
+// the exporter's `url` option does NOT add automatically once you pass one
+// explicitly. Passing the endpoint straight through silently 404s every
+// export.
+const otlpEndpoint = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://alloy.observability.svc:4318').replace(/\/$/, '');
 
 const sdk = new NodeSDK({
   resource: resourceFromAttributes({
@@ -17,9 +25,7 @@ const sdk = new NodeSDK({
 }),
 
   traceExporter: new OTLPTraceExporter({
-    url:
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
-      'http://alloy.observability.svc:4317',
+    url: `${otlpEndpoint}/v1/traces`,
   }),
 
   instrumentations: [
