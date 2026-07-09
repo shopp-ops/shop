@@ -59,3 +59,7 @@ npm run dev           # http://localhost:3001
 ## Payments
 
 Checkout uses MetaMask on the Ethereum Sepolia testnet. The customer connects their wallet and sends a transaction to the address configured in `WALLET_ADDRESS`. The backend verifies the transaction on-chain before confirming the order.
+
+## Observability
+
+The API exports Prometheus metrics (`/metrics`), structured JSON logs (pino), and OpenTelemetry traces. See `kube-state`'s README for how to access the Grafana dashboard and alerts.
